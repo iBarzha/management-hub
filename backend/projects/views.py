@@ -4,7 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Team, Project, TeamMember
 from .serializers import TeamSerializer, ProjectSerializer
-from ..users.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class TeamViewSet(viewsets.ModelViewSet):
     serializer_class = TeamSerializer

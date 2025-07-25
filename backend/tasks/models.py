@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from ..projects.models import Project
+from projects.models import Project
 
 
 class Task(models.Model):
