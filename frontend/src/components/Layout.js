@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {Box, Drawer, AppBar, Toolbar, List, Typography, Divider, IconButton, ListItem,
   ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem,} from '@mui/material';
-import {Menu as MenuIcon, Dashboard, Work, Group, AccountCircle, Logout} from '@mui/icons-material';
+import {Menu as MenuIcon, Dashboard, Work, Group, Assignment, AccountCircle, Logout} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 
@@ -38,6 +38,7 @@ const Layout = () => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
     { text: 'Projects', icon: <Work />, path: '/projects' },
     { text: 'Teams', icon: <Group />, path: '/teams' },
+    { text: 'Tasks', icon: <Assignment />, path: '/tasks' },
   ];
 
   const drawer = (

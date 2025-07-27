@@ -15,6 +15,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Teams from './pages/Teams';
+import Tasks from './pages/Tasks';
 
 const theme = createTheme({
   palette: {
@@ -50,6 +51,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
             <Route path="teams" element={<Teams />} />
+            <Route path="tasks" element={<Tasks />} />
           </Route>
         </Routes>
       </Router>
