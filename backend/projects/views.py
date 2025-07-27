@@ -2,8 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Team, Project, TeamMember
-from .serializers import TeamSerializer, ProjectSerializer
+from .models import Team, Project, TeamMember, Sprint
+from .serializers import TeamSerializer, ProjectSerializer, SprintSerializer
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -43,6 +43,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Project.objects.filter(team__members__user=self.request.user).distinct()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class SprintViewSet(viewsets.ModelViewSet):
+    serializer_class = SprintSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Sprint.objects.filter(project__team__members__user=self.request.user).distinct()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

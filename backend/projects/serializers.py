@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Team, TeamMember, Project
+from .models import Team, TeamMember, Project, Sprint
 from users.serializers import UserSerializer
 
 
@@ -37,3 +37,20 @@ class ProjectSerializer(serializers.ModelSerializer):
                   'start_date', 'end_date', 'cover_image', 'github_repo_url',
                   'created_by', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class SprintSerializer(serializers.ModelSerializer):
+    project = ProjectSerializer(read_only=True)
+    project_id = serializers.IntegerField(write_only=True)
+    created_by = UserSerializer(read_only=True)
+    task_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Sprint
+        fields = ['id', 'name', 'description', 'project', 'project_id', 'status',
+                  'start_date', 'end_date', 'goal', 'created_by', 'task_count',
+                  'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_task_count(self, obj):
+        return obj.tasks.count()
