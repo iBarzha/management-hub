@@ -1,33 +1,53 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {Grid, Paper, Typography, Box, Card, CardContent, LinearProgress,} from '@mui/material';
 import {People, Work, Assignment, CheckCircle} from '@mui/icons-material';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchProjects } from '../store/slices/projectSlice';
+import { fetchTeams } from '../store/slices/teamSlice';
+import { fetchTasks } from '../store/slices/taskSlice';
 
 const Dashboard = () => {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { projects } = useSelector((state) => state.projects);
+  const { teams } = useSelector((state) => state.teams);
+  const { tasks } = useSelector((state) => state.tasks);
+
+  useEffect(() => {
+    dispatch(fetchProjects());
+    dispatch(fetchTeams());
+    dispatch(fetchTasks());
+  }, [dispatch]);
+
+  // Calculate stats from real data
+  const totalProjects = projects.length;
+  const activeTasks = tasks.filter(task => task.status === 'in_progress' || task.status === 'todo').length;
+  const totalMembers = teams.reduce((sum, team) => sum + (team.member_count || 0), 0);
+  const completedTasks = tasks.filter(task => task.status === 'done').length;
+  const activeProjects = projects.filter(project => project.status === 'active');
 
   const stats = [
     {
       title: 'Total Projects',
-      value: '12',
+      value: totalProjects.toString(),
       icon: <Work />,
       color: '#1976d2',
     },
     {
       title: 'Active Tasks',
-      value: '24',
+      value: activeTasks.toString(),
       icon: <Assignment />,
       color: '#ff9800',
     },
     {
       title: 'Team Members',
-      value: '8',
+      value: totalMembers.toString(),
       icon: <People />,
       color: '#4caf50',
     },
     {
-      title: 'Completed',
-      value: '156',
+      title: 'Completed Tasks',
+      value: completedTasks.toString(),
       icon: <CheckCircle />,
       color: '#9c27b0',
     },
@@ -93,24 +113,34 @@ const Dashboard = () => {
               Project Progress
             </Typography>
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body2">Project Alpha</Typography>
-              <LinearProgress
-                variant="determinate"
-                value={75}
-                sx={{ mt: 1, mb: 2 }}
-              />
-              <Typography variant="body2">Project Beta</Typography>
-              <LinearProgress
-                variant="determinate"
-                value={45}
-                sx={{ mt: 1, mb: 2 }}
-              />
-              <Typography variant="body2">Project Gamma</Typography>
-              <LinearProgress
-                variant="determinate"
-                value={90}
-                sx={{ mt: 1 }}
-              />
+              {activeProjects.length > 0 ? (
+                activeProjects.slice(0, 3).map((project) => {
+                  // Calculate progress based on tasks completion
+                  const projectTasks = tasks.filter(task => task.project?.id === project.id);
+                  const completedProjectTasks = projectTasks.filter(task => task.status === 'done');
+                  const progress = projectTasks.length > 0 
+                    ? Math.round((completedProjectTasks.length / projectTasks.length) * 100)
+                    : 0;
+                  
+                  return (
+                    <Box key={project.id} sx={{ mb: 2 }}>
+                      <Typography variant="body2">{project.name}</Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={progress}
+                        sx={{ mt: 1 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {progress}% complete ({completedProjectTasks.length}/{projectTasks.length} tasks)
+                      </Typography>
+                    </Box>
+                  );
+                })
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No active projects to display
+                </Typography>
+              )}
             </Box>
           </Paper>
         </Grid>

@@ -28,6 +28,21 @@ const Chat = ({ room, height = 400 }) => {
   const typingTimeoutRef = useRef(null);
   const { user, token } = useSelector(state => state.auth);
 
+  const loadChatHistory = async () => {
+    try {
+      const response = await api.get(`/collaboration/messages/?room=${room}`);
+      const messages = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data?.results || []);
+      setMessages(messages.reverse());
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      setMessages([]);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!room || !token) return;
 
@@ -39,18 +54,25 @@ const Chat = ({ room, height = 400 }) => {
     
     // Add message handler
     const handleMessage = (data) => {
+      if (!data || typeof data !== 'object') {
+        console.warn('Invalid message data received:', data);
+        return;
+      }
+      
       switch (data.type) {
         case 'chat_message':
           setMessages(prev => [data, ...prev]);
           break;
         case 'user_joined':
-          setOnlineUsers(data.online_users || []);
+          setOnlineUsers(Array.isArray(data.online_users) ? data.online_users : []);
           break;
         case 'user_left':
-          setOnlineUsers(data.online_users || []);
+          setOnlineUsers(Array.isArray(data.online_users) ? data.online_users : []);
           break;
         case 'typing':
-          handleTypingIndicator(data.user, data.is_typing);
+          if (data.user && typeof data.is_typing === 'boolean') {
+            handleTypingIndicator(data.user, data.is_typing);
+          }
           break;
         default:
           console.log('Unknown message type:', data.type);
@@ -63,22 +85,11 @@ const Chat = ({ room, height = 400 }) => {
       webSocketService.removeMessageHandler('/ws/chat/', room, handleMessage);
       webSocketService.disconnect('/ws/chat/', room);
     };
-  }, [room, token]);
+  }, [room, token, loadChatHistory]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await api.get(`/collaboration/messages/?room=${room}`);
-      setMessages(response.data.results.reverse() || []);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-      setLoading(false);
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

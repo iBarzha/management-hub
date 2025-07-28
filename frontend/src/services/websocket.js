@@ -27,8 +27,12 @@ class WebSocketService {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      this.handleMessage(connectionKey, data);
+      try {
+        const data = JSON.parse(event.data);
+        this.handleMessage(connectionKey, data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error, event.data);
+      }
     };
 
     ws.onclose = (event) => {
@@ -96,7 +100,13 @@ class WebSocketService {
 
   handleMessage(connectionKey, data) {
     const handlers = this.messageHandlers.get(connectionKey) || [];
-    handlers.forEach(handler => handler(data));
+    handlers.forEach(handler => {
+      try {
+        handler(data);
+      } catch (error) {
+        console.error('Error in message handler:', error);
+      }
+    });
   }
 
   // Chat-specific methods
