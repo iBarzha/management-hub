@@ -1,16 +1,45 @@
-import React, { useEffect } from 'react';
-import { Box, Typography, Grid, Card, CardContent, Button, Avatar, Chip, CircularProgress } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Grid, 
+  Card, 
+  CardContent, 
+  Button, 
+  Avatar, 
+  Chip, 
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField
+} from '@mui/material';
 import { Add, People } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchTeams } from '../store/slices/teamSlice';
+import { fetchTeams, createTeam } from '../store/slices/teamSlice';
+import { useForm } from 'react-hook-form';
 
 const Teams = () => {
   const dispatch = useDispatch();
   const { teams, isLoading, error } = useSelector((state) => state.teams);
+  const [openDialog, setOpenDialog] = useState(false);
+  
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
     dispatch(fetchTeams());
   }, [dispatch]);
+
+  const handleCreateTeam = async (data) => {
+    try {
+      await dispatch(createTeam(data));
+      setOpenDialog(false);
+      reset();
+    } catch (err) {
+      console.error('Failed to create team:', err);
+    }
+  };
 
 
   if (isLoading) {
@@ -41,6 +70,7 @@ const Teams = () => {
           variant="contained"
           startIcon={<Add />}
           sx={{ mb: 2 }}
+          onClick={() => setOpenDialog(true)}
         >
           New Team
         </Button>
@@ -54,7 +84,7 @@ const Teams = () => {
           <Typography variant="body2" color="text.secondary" mb={3}>
             Create your first team to start collaborating
           </Typography>
-          <Button variant="contained" startIcon={<Add />}>
+          <Button variant="contained" startIcon={<Add />} onClick={() => setOpenDialog(true)}>
             Create Team
           </Button>
         </Box>
@@ -98,6 +128,38 @@ const Teams = () => {
           ))}
         </Grid>
       )}
+
+      {/* Create Team Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Team</DialogTitle>
+        <DialogContent>
+          <Box component="form" onSubmit={handleSubmit(handleCreateTeam)} sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Team Name"
+              margin="normal"
+              {...register('name', { required: 'Name is required' })}
+              error={!!errors.name}
+              helperText={errors.name?.message}
+            />
+            
+            <TextField
+              fullWidth
+              label="Description"
+              margin="normal"
+              multiline
+              rows={3}
+              {...register('description')}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSubmit(handleCreateTeam)} variant="contained">
+            Create Team
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

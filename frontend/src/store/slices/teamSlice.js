@@ -94,7 +94,7 @@ const teamSlice = createSlice({
       })
       .addCase(fetchTeams.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.teams = action.payload;
+        state.teams = Array.isArray(action.payload) ? action.payload : (action.payload?.results || []);
       })
       .addCase(fetchTeams.rejected, (state, action) => {
         state.isLoading = false;
