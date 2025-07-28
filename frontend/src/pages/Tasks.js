@@ -23,6 +23,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchTasks, createTask, updateTask } from '../store/slices/taskSlice';
 import { fetchProjects } from '../store/slices/projectSlice';
 import { useForm } from 'react-hook-form';
+import UserPresence from '../components/UserPresence';
+import webSocketService from '../services/websocket';
+import api from '../services/api';
 import {
   DndContext,
   DragOverlay,
@@ -134,8 +137,10 @@ const Tasks = () => {
   const dispatch = useDispatch();
   const { tasks, isLoading, error } = useSelector((state) => state.tasks);
   const { projects } = useSelector((state) => state.projects);
+  const { user, token } = useSelector((state) => state.auth);
   const [openDialog, setOpenDialog] = useState(false);
   const [activeId, setActiveId] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -150,6 +155,41 @@ const Tasks = () => {
     dispatch(fetchTasks());
     dispatch(fetchProjects());
   }, [dispatch]);
+
+  // Set up real-time collaboration for selected project
+  useEffect(() => {
+    if (!selectedProject || !user || !token) return;
+
+    // Update user presence to current project
+    const updatePresence = async () => {
+      try {
+        await api.post('/collaboration/presence/update_presence/', {
+          is_online: true,
+          current_project: selectedProject
+        });
+      } catch (error) {
+        console.error('Error updating presence:', error);
+      }
+    };
+
+    updatePresence();
+
+    const ws = webSocketService.connectToProject(selectedProject.toString(), token);
+    
+    const handleMessage = (data) => {
+      if (data.type === 'task_updated') {
+        // Refresh tasks when collaborative updates occur
+        dispatch(fetchTasks());
+      }
+    };
+
+    webSocketService.addMessageHandler('/ws/project/', selectedProject.toString(), handleMessage);
+
+    return () => {
+      webSocketService.removeMessageHandler('/ws/project/', selectedProject.toString(), handleMessage);
+      webSocketService.disconnect('/ws/project/', selectedProject.toString());
+    };
+  }, [selectedProject, user, token, dispatch]);
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -178,16 +218,28 @@ const Tasks = () => {
   const handleStatusChange = async (taskId, newStatus) => {
     try {
       await dispatch(updateTask({ id: taskId, status: newStatus }));
+      
+      // Send real-time update if project is selected
+      if (selectedProject) {
+        webSocketService.sendTaskUpdate(selectedProject.toString(), taskId, {
+          status: newStatus,
+          updated_by: user.username
+        });
+      }
     } catch (err) {
       console.error('Failed to update task status:', err);
     }
   };
 
+  const filteredTasks = selectedProject 
+    ? tasks.filter(task => task.project?.id === selectedProject)
+    : tasks;
+
   const tasksByStatus = {
-    todo: tasks.filter(task => task.status === 'todo'),
-    in_progress: tasks.filter(task => task.status === 'in_progress'),
-    review: tasks.filter(task => task.status === 'review'),
-    done: tasks.filter(task => task.status === 'done'),
+    todo: filteredTasks.filter(task => task.status === 'todo'),
+    in_progress: filteredTasks.filter(task => task.status === 'in_progress'),
+    review: filteredTasks.filter(task => task.status === 'review'),
+    done: filteredTasks.filter(task => task.status === 'done'),
   };
 
   const statusColumns = [
@@ -213,7 +265,7 @@ const Tasks = () => {
     // Check if we're dropping over a column
     const overColumn = statusColumns.find(col => col.key === overId);
     if (overColumn) {
-      const task = tasks.find(t => t.id === activeId);
+      const task = filteredTasks.find(t => t.id === activeId);
       if (task && task.status !== overColumn.key) {
         handleStatusChange(activeId, overColumn.key);
       }
@@ -238,7 +290,7 @@ const Tasks = () => {
     );
   }
 
-  const activeTask = activeId ? tasks.find(task => task.id === activeId) : null;
+  const activeTask = activeId ? filteredTasks.find(task => task.id === activeId) : null;
 
   return (
     <DndContext
@@ -252,14 +304,41 @@ const Tasks = () => {
           <Typography variant="h4" gutterBottom>
             Tasks Board
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setOpenDialog(true)}
-          >
-            New Task
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel>Filter by Project</InputLabel>
+              <Select
+                value={selectedProject || ''}
+                onChange={(e) => setSelectedProject(e.target.value || null)}
+                size="small"
+              >
+                <MenuItem value="">All Projects</MenuItem>
+                {projects.map((project) => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => setOpenDialog(true)}
+            >
+              New Task
+            </Button>
+          </Box>
         </Box>
+
+        {/* Online Users for Selected Project */}
+        {selectedProject && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Collaborators Online
+            </Typography>
+            <UserPresence projectId={selectedProject} showLabels maxUsers={8} />
+          </Box>
+        )}
 
         {/* Kanban Board */}
         <Grid container spacing={2}>

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {Box, Drawer, AppBar, Toolbar, List, Typography, Divider, IconButton, ListItem,
   ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem,} from '@mui/material';
-import {Menu as MenuIcon, Dashboard, Work, Group, Assignment, AccountCircle, Logout} from '@mui/icons-material';
+import {Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, AccountCircle, Logout} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
+import Notifications from './Notifications';
+import api from '../services/api';
 
 const drawerWidth = 240;
 
@@ -16,6 +18,42 @@ const Layout = () => {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+
+  // Update user presence when component mounts and unmounts
+  useEffect(() => {
+    const updatePresence = async (isOnline) => {
+      try {
+        await api.post('/collaboration/presence/update_presence/', {
+          is_online: isOnline,
+          current_project: null
+        });
+      } catch (error) {
+        console.error('Error updating presence:', error);
+      }
+    };
+
+    // Set user as online
+    updatePresence(true);
+
+    // Set user as offline when window is about to close
+    const handleBeforeUnload = () => {
+      updatePresence(false);
+    };
+
+    // Set user as offline when page becomes hidden
+    const handleVisibilityChange = () => {
+      updatePresence(!document.hidden);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      updatePresence(false);
+    };
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -39,6 +77,7 @@ const Layout = () => {
     { text: 'Projects', icon: <Work />, path: '/projects' },
     { text: 'Teams', icon: <Group />, path: '/teams' },
     { text: 'Tasks', icon: <Assignment />, path: '/tasks' },
+    { text: 'Chat', icon: <ChatIcon />, path: '/chat' },
   ];
 
   const drawer = (
@@ -87,6 +126,8 @@ const Layout = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find((item) => item.path === location.pathname)?.text || 'Project Management Hub'}
           </Typography>
+
+          <Notifications />
 
           <div>
             <IconButton
