@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import {Box, Drawer, AppBar, Toolbar, List, Typography, Divider, IconButton, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem,} from '@mui/material';
-import {Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, AccountCircle, Logout} from '@mui/icons-material';
+import {
+  Box, Drawer, AppBar, Toolbar, List, Typography, Divider, IconButton, ListItem,
+  ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Badge, Chip
+} from '@mui/material';
+import {
+  Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, 
+  AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon
+} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
 import Notifications from './Notifications';
@@ -81,27 +86,75 @@ const Layout = () => {
   ];
 
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Project Hub
-        </Typography>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ px: 3, py: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '1.2rem',
+            }}
+          >
+            PM
+          </Box>
+          <Typography variant="h6" component="div" sx={{ fontWeight: 700, color: 'primary.main' }}>
+            Project Hub
+          </Typography>
+        </Box>
       </Toolbar>
-      <Divider />
-      <List>
+      <Divider sx={{ mx: 2 }} />
+      <List sx={{ px: 2, py: 1, flexGrow: 1 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+          <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               selected={location.pathname === item.path}
               onClick={() => navigate(item.path)}
+              sx={{
+                borderRadius: 2,
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'primary.dark',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: 'white',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemText 
+                primary={item.text} 
+                primaryTypographyProps={{ 
+                  fontWeight: location.pathname === item.path ? 600 : 500 
+                }} 
+              />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </div>
+      <Box sx={{ p: 2 }}>
+        <Chip
+          avatar={<Avatar sx={{ bgcolor: 'success.main', width: 24, height: 24 }}>{user?.username?.charAt(0)?.toUpperCase()}</Avatar>}
+          label={user?.username || 'User'}
+          variant="outlined"
+          size="small"
+          sx={{ width: '100%' }}
+        />
+      </Box>
+    </Box>
   );
 
   return (
@@ -113,7 +166,7 @@ const Layout = () => {
           ml: { sm: `${drawerWidth}px` },
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ px: 3 }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -123,32 +176,48 @@ const Layout = () => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find((item) => item.path === location.pathname)?.text || 'Project Management Hub'}
-          </Typography>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h5" component="div" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+              Welcome back, {user?.username}
+            </Typography>
+          </Box>
 
-          <Notifications />
-
-          <div>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Notifications />
+            
             <IconButton
               size="large"
               aria-label="account of current user"
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleMenu}
-              color="inherit"
+              sx={{ 
+                ml: 1,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                }
+              }}
             >
               {user?.avatar ? (
-                <Avatar src={user.avatar} alt={user.username} />
+                <Avatar 
+                  src={user.avatar} 
+                  alt={user.username}
+                  sx={{ width: 40, height: 40 }}
+                />
               ) : (
-                <AccountCircle />
+                <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+                  {user?.username?.charAt(0)?.toUpperCase()}
+                </Avatar>
               )}
             </IconButton>
             <Menu
               id="menu-appbar"
               anchorEl={anchorEl}
               anchorOrigin={{
-                vertical: 'top',
+                vertical: 'bottom',
                 horizontal: 'right',
               }}
               keepMounted
@@ -158,18 +227,43 @@ const Layout = () => {
               }}
               open={Boolean(anchorEl)}
               onClose={handleClose}
+              sx={{
+                '& .MuiPaper-root': {
+                  borderRadius: 2,
+                  minWidth: 200,
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                }
+              }}
             >
-              <MenuItem onClick={() => navigate('/profile')}>Profile</MenuItem>
-              <MenuItem onClick={() => navigate('/settings')}>Settings</MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
+              <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {user?.email}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {user?.username}
+                </Typography>
+              </Box>
+              <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
                 <ListItemIcon>
-                  <Logout fontSize="small" />
+                  <Person fontSize="small" />
+                </ListItemIcon>
+                Profile
+              </MenuItem>
+              <MenuItem onClick={handleClose} sx={{ py: 1.5 }}>
+                <ListItemIcon>
+                  <Settings fontSize="small" />
+                </ListItemIcon>
+                Settings
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: 'error.main' }}>
+                <ListItemIcon>
+                  <Logout fontSize="small" color="error" />
                 </ListItemIcon>
                 Logout
               </MenuItem>
             </Menu>
-          </div>
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -213,12 +307,16 @@ const Layout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 0,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          backgroundColor: 'background.default',
+          minHeight: '100vh',
         }}
       >
         <Toolbar />
-        <Outlet />
+        <Box sx={{ p: 3 }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );
