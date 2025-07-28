@@ -33,10 +33,12 @@ const UserPresence = ({ projectId, maxUsers = 5, showLabels = false }) => {
         : '/collaboration/presence/online_users/';
       
       const response = await api.get(url);
-      setOnlineUsers(response.data || []);
+      const users = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+      setOnlineUsers(users);
       setLoading(false);
     } catch (error) {
       console.error('Error loading online users:', error);
+      setOnlineUsers([]);
       setLoading(false);
     }
   };
