@@ -27,17 +27,29 @@ export const fetchTask = createAsyncThunk(
 
 export const createTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData) => {
-    const response = await api.post('/tasks/', taskData);
-    return response.data;
+  async (taskData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/tasks/', taskData);
+      return response.data;
+    } catch (error) {
+      console.error('Create task error:', error.response?.data);
+      return rejectWithValue(error.response?.data || error.message);
+    }
   }
 );
 
 export const updateTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ id, ...taskData }) => {
-    const response = await api.put(`/tasks/${id}/`, taskData);
-    return response.data;
+  async ({ id, ...taskData }, { rejectWithValue }) => {
+    try {
+      console.log('Updating task:', id, taskData);
+      const response = await api.patch(`/tasks/${id}/`, taskData);
+      console.log('Task update response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Update task error:', error.response?.data);
+      return rejectWithValue(error.response?.data || error.message);
+    }
   }
 );
 
@@ -76,7 +88,7 @@ const taskSlice = createSlice({
       })
       .addCase(fetchTasks.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.tasks = action.payload;
+        state.tasks = Array.isArray(action.payload) ? action.payload : (action.payload?.results || []);
       })
       .addCase(fetchTasks.rejected, (state, action) => {
         state.isLoading = false;
@@ -106,9 +118,34 @@ const taskSlice = createSlice({
       })
       .addCase(createTask.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error.message || 'Failed to create task';
+        // Get detailed error message from rejectWithValue
+        const errorData = action.payload;
+        let errorMessage = 'Failed to create task';
+        
+        if (errorData) {
+          if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else {
+            // If it's field validation errors, format them
+            const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+              const errorList = Array.isArray(errors) ? errors : [errors];
+              return `${field}: ${errorList.join(', ')}`;
+            }).join('; ');
+            errorMessage = fieldErrors || 'Validation error';
+          }
+        }
+        
+        state.error = errorMessage;
+        console.error('Task creation failed:', action);
       })
       // Update Task
+      .addCase(updateTask.pending, (state) => {
+        state.error = null;
+      })
       .addCase(updateTask.fulfilled, (state, action) => {
         const index = state.tasks.findIndex(t => t.id === action.payload.id);
         if (index !== -1) {
@@ -117,6 +154,28 @@ const taskSlice = createSlice({
         if (state.currentTask && state.currentTask.id === action.payload.id) {
           state.currentTask = action.payload;
         }
+        state.error = null;
+      })
+      .addCase(updateTask.rejected, (state, action) => {
+        const errorData = action.payload;
+        let errorMessage = 'Failed to update task';
+        
+        if (errorData) {
+          if (typeof errorData === 'string') {
+            errorMessage = errorData;
+          } else if (errorData.detail) {
+            errorMessage = errorData.detail;
+          } else {
+            const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+              const errorList = Array.isArray(errors) ? errors : [errors];
+              return `${field}: ${errorList.join(', ')}`;
+            }).join('; ');
+            errorMessage = fieldErrors || 'Validation error';
+          }
+        }
+        
+        state.error = errorMessage;
+        console.error('Task update failed:', action);
       })
       // Delete Task
       .addCase(deleteTask.fulfilled, (state, action) => {

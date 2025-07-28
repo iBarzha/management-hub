@@ -22,6 +22,7 @@ import { Add, Assignment, DragIndicator } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTasks, createTask, updateTask } from '../store/slices/taskSlice';
 import { fetchProjects } from '../store/slices/projectSlice';
+import { fetchTeams } from '../store/slices/teamSlice';
 import { useForm } from 'react-hook-form';
 import UserPresence from '../components/UserPresence';
 import webSocketService from '../services/websocket';
@@ -29,11 +30,12 @@ import api from '../services/api';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -44,6 +46,33 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
+
+// Droppable Column Component
+const DroppableColumn = ({ column, tasks, children }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.key,
+  });
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      sx={{ 
+        backgroundColor: column.color, 
+        minHeight: '600px',
+        border: isOver ? '2px solid #1976d2' : '1px solid #e0e0e0',
+        transition: 'border-color 0.2s ease',
+      }}
+    >
+      <CardContent>
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+          <Assignment sx={{ mr: 1 }} />
+          {column.title} ({tasks.length})
+        </Typography>
+        {children}
+      </CardContent>
+    </Card>
+  );
+};
 
 // Draggable Task Card Component
 const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatusChange }) => {
@@ -137,6 +166,7 @@ const Tasks = () => {
   const dispatch = useDispatch();
   const { tasks, isLoading, error } = useSelector((state) => state.tasks);
   const { projects } = useSelector((state) => state.projects);
+  const { teams } = useSelector((state) => state.teams);
   const { user, token } = useSelector((state) => state.auth);
   const [openDialog, setOpenDialog] = useState(false);
   const [activeId, setActiveId] = useState(null);
@@ -145,7 +175,11 @@ const Tasks = () => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -154,6 +188,7 @@ const Tasks = () => {
   useEffect(() => {
     dispatch(fetchTasks());
     dispatch(fetchProjects());
+    dispatch(fetchTeams());
   }, [dispatch]);
 
   // Set up real-time collaboration for selected project
@@ -203,11 +238,22 @@ const Tasks = () => {
 
   const handleCreateTask = async (data) => {
     try {
-      await dispatch(createTask({
-        ...data,
+      const taskData = {
+        title: data.title,
+        description: data.description || '',
         project_id: parseInt(data.project_id),
-        assignee_id: data.assignee_id ? parseInt(data.assignee_id) : null,
-      }));
+        priority: data.priority || 'medium',
+        status: 'todo',
+        due_date: data.due_date || null,
+        estimated_hours: data.estimated_hours ? parseFloat(data.estimated_hours) : null,
+      };
+
+      // Only include assignee_id if it exists and is valid
+      if (data.assignee_id && data.assignee_id !== '') {
+        taskData.assignee_id = parseInt(data.assignee_id);
+      }
+
+      await dispatch(createTask(taskData));
       setOpenDialog(false);
       reset();
     } catch (err) {
@@ -216,15 +262,27 @@ const Tasks = () => {
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
+    console.log(`Updating task ${taskId} status to ${newStatus}`);
+
     try {
-      await dispatch(updateTask({ id: taskId, status: newStatus }));
+      // Use PATCH for partial update - only send the status
+      const result = await dispatch(updateTask({ 
+        id: taskId, 
+        status: newStatus 
+      }));
       
-      // Send real-time update if project is selected
-      if (selectedProject) {
-        webSocketService.sendTaskUpdate(selectedProject.toString(), taskId, {
-          status: newStatus,
-          updated_by: user.username
-        });
+      if (updateTask.fulfilled.match(result)) {
+        console.log('Task status updated successfully');
+        
+        // Send real-time update if project is selected
+        if (selectedProject) {
+          webSocketService.sendTaskUpdate(selectedProject.toString(), taskId, {
+            status: newStatus,
+            updated_by: user.username
+          });
+        }
+      } else {
+        console.error('Failed to update task status:', result.error);
       }
     } catch (err) {
       console.error('Failed to update task status:', err);
@@ -262,13 +320,23 @@ const Tasks = () => {
     const activeId = active.id;
     const overId = over.id;
 
+    // Find the task being dragged
+    const draggedTask = filteredTasks.find(t => t.id === activeId);
+    if (!draggedTask) return;
+
     // Check if we're dropping over a column
     const overColumn = statusColumns.find(col => col.key === overId);
-    if (overColumn) {
-      const task = filteredTasks.find(t => t.id === activeId);
-      if (task && task.status !== overColumn.key) {
-        handleStatusChange(activeId, overColumn.key);
-      }
+    if (overColumn && draggedTask.status !== overColumn.key) {
+      console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overColumn.key}`);
+      handleStatusChange(activeId, overColumn.key);
+      return;
+    }
+
+    // Check if we're dropping over another task (to get the column)
+    const overTask = filteredTasks.find(t => t.id === overId);
+    if (overTask && draggedTask.status !== overTask.status) {
+      console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overTask.status}`);
+      handleStatusChange(activeId, overTask.status);
     }
   };
 
@@ -295,7 +363,7 @@ const Tasks = () => {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -344,36 +412,22 @@ const Tasks = () => {
         <Grid container spacing={2}>
           {statusColumns.map((column) => (
             <Grid item xs={12} md={3} key={column.key}>
-              <Card 
-                sx={{ 
-                  backgroundColor: column.color, 
-                  minHeight: '600px',
-                  border: activeId ? '2px dashed #ccc' : 'none'
-                }}
-                id={column.key}
-              >
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Assignment sx={{ mr: 1 }} />
-                    {column.title} ({tasksByStatus[column.key].length})
-                  </Typography>
-                  
-                  <SortableContext 
-                    items={tasksByStatus[column.key].map(task => task.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {tasksByStatus[column.key].map((task) => (
-                      <DraggableTaskCard
-                        key={task.id}
-                        task={task}
-                        getPriorityColor={getPriorityColor}
-                        statusColumns={statusColumns}
-                        handleStatusChange={handleStatusChange}
-                      />
-                    ))}
-                  </SortableContext>
-                </CardContent>
-              </Card>
+              <DroppableColumn column={column} tasks={tasksByStatus[column.key]}>
+                <SortableContext 
+                  items={tasksByStatus[column.key].map(task => task.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {tasksByStatus[column.key].map((task) => (
+                    <DraggableTaskCard
+                      key={task.id}
+                      task={task}
+                      getPriorityColor={getPriorityColor}
+                      statusColumns={statusColumns}
+                      handleStatusChange={handleStatusChange}
+                    />
+                  ))}
+                </SortableContext>
+              </DroppableColumn>
             </Grid>
           ))}
         </Grid>
@@ -452,6 +506,15 @@ const Tasks = () => {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 {...register('due_date')}
+              />
+              
+              <TextField
+                fullWidth
+                label="Assignee ID (optional)"
+                type="number"
+                margin="normal"
+                placeholder="Leave empty to unassign"
+                {...register('assignee_id')}
               />
               
               <TextField
