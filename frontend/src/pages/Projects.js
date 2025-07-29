@@ -1,24 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog, DialogTitle, DialogContent,
+  DialogActions, TextField, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import { 
-  Box, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  Button, 
-  Chip, 
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
-} from '@mui/material';
-import { Add, Folder } from '@mui/icons-material';
+  Add, Folder, MoreVert, Edit, Delete, People, CalendarToday, 
+  TrendingUp, Assignment, Timeline, FilterList} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects, createProject } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
@@ -85,63 +70,185 @@ const Projects = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Projects
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          sx={{ mb: 2 }}
-          onClick={() => setOpenDialog(true)}
-        >
-          New Project
-        </Button>
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+              Projects
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Manage and track all your projects in one place
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<FilterList />}
+              sx={{ borderRadius: 2 }}
+            >
+              Filter
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => setOpenDialog(true)}
+              sx={{ 
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #1e40af 0%, #5b21b6 100%)',
+                }
+              }}
+            >
+              New Project
+            </Button>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+          {[{ label: 'All Projects', count: projects.length, active: true }, 
+            { label: 'Active', count: projects.filter(p => p.status === 'active').length }, 
+            { label: 'Planning', count: projects.filter(p => p.status === 'planning').length }, 
+            { label: 'Completed', count: projects.filter(p => p.status === 'completed').length }].map((tab, index) => (
+            <Chip
+              key={index}
+              label={`${tab.label} (${tab.count})`}
+              clickable
+              color={tab.active ? 'primary' : 'default'}
+              variant={tab.active ? 'filled' : 'outlined'}
+              sx={{ 
+                borderRadius: 2,
+                '&:hover': { backgroundColor: tab.active ? 'primary.main' : 'action.hover' }
+              }}
+            />
+          ))}
+        </Box>
       </Box>
 
       {projects.length === 0 ? (
-        <Box textAlign="center" py={8}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No projects found
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mb={3}>
-            Create your first project to get started
-          </Typography>
-          <Button variant="contained" startIcon={<Add />} onClick={() => setOpenDialog(true)}>
-            Create Project
-          </Button>
-        </Box>
+        <Card sx={{ textAlign: 'center', py: 8 }}>
+          <CardContent>
+            <Folder sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+              No projects yet
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
+              Projects help you organize tasks, collaborate with team members, and track progress towards your goals.
+            </Typography>
+            <Button 
+              variant="contained" 
+              size="large"
+              startIcon={<Add />} 
+              onClick={() => setOpenDialog(true)}
+              sx={{ 
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                px: 4, py: 1.5
+              }}
+            >
+              Create Your First Project
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <Grid container spacing={3}>
           {projects.map((project) => (
             <Grid item xs={12} md={6} lg={4} key={project.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Folder sx={{ mr: 1, color: 'primary.main' }} />
-                    <Typography variant="h6" component="div">
-                      {project.name}
-                    </Typography>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 8px 25px 0 rgb(0 0 0 / 0.15)',
+                  }
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 2.5,
+                          background: `linear-gradient(135deg, ${getStatusColor(project.status) === 'success' ? '#10b981' : getStatusColor(project.status) === 'warning' ? '#f59e0b' : '#2563eb'}20 0%, ${getStatusColor(project.status) === 'success' ? '#10b981' : getStatusColor(project.status) === 'warning' ? '#f59e0b' : '#2563eb'}10 100%)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: getStatusColor(project.status) === 'success' ? '#10b981' : getStatusColor(project.status) === 'warning' ? '#f59e0b' : '#2563eb'
+                        }}
+                      >
+                        <Folder fontSize="medium" />
+                      </Box>
+                      <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                          {project.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {project.team?.name || 'No team assigned'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Button
+                      size="small"
+                      sx={{ minWidth: 'auto', p: 0.5 }}
+                    >
+                      <MoreVert fontSize="small" />
+                    </Button>
                   </Box>
                   
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {project.description}
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      mb: 3, 
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      minHeight: '2.5rem'
+                    }}
+                  >
+                    {project.description || 'No description provided'}
                   </Typography>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                     <Chip 
-                      label={project.status} 
+                      label={project.status.replace('_', ' ')} 
                       color={getStatusColor(project.status)}
                       size="small"
+                      sx={{ 
+                        fontWeight: 600,
+                        textTransform: 'capitalize',
+                        '& .MuiChip-label': { px: 1.5 }
+                      }}
                     />
-                    <Typography variant="body2" color="text.secondary">
-                      {project.team?.name}
-                    </Typography>
                   </Box>
                   
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(project.start_date)} - {formatDate(project.end_date)}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatDate(project.start_date)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Assignment sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary">
+                        0 tasks
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <People sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary">
+                        {project.team?.member_count || 0}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
