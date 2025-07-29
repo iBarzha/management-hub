@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Avatar,
-  AvatarGroup,
-  Tooltip,
-  Badge,
-  Box,
-  Typography,
-  Chip
-} from '@mui/material';
+import {Avatar, AvatarGroup, Tooltip, Badge, Box, Typography, Chip} from '@mui/material';
 import { Circle as CircleIcon } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import api from '../services/api';

@@ -1,24 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog,
+  DialogTitle, DialogContent, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import { 
-  Box, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  Button, 
-  Chip, 
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TextField,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
-} from '@mui/material';
-import { Add, Assignment, DragIndicator } from '@mui/icons-material';
+  Add, Assignment, DragIndicator, MoreVert, Person, Schedule,
+  Flag, CheckCircle, PlayArrow, Visibility, FilterList
+} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTasks, createTask, updateTask } from '../store/slices/taskSlice';
 import { fetchProjects } from '../store/slices/projectSlice';
@@ -53,24 +39,64 @@ const DroppableColumn = ({ column, tasks, children }) => {
     id: column.key,
   });
 
+  const getColumnIcon = (key) => {
+    switch (key) {
+      case 'todo': return <Assignment />;
+      case 'in_progress': return <PlayArrow />;
+      case 'review': return <Visibility />;
+      case 'done': return <CheckCircle />;
+      default: return <Assignment />;
+    }
+  };
+
   return (
-    <Card 
+    <Box 
       ref={setNodeRef}
       sx={{ 
-        backgroundColor: column.color, 
-        minHeight: '600px',
-        border: isOver ? '2px solid #1976d2' : '1px solid #e0e0e0',
-        transition: 'border-color 0.2s ease',
+        backgroundColor: 'background.paper',
+        borderRadius: 3,
+        border: isOver ? `2px solid ${column.accentColor}` : '1px solid #e2e8f0',
+        transition: 'all 0.2s ease',
+        minHeight: '70vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: isOver ? '0 8px 25px 0 rgb(0 0 0 / 0.15)' : '0 1px 3px 0 rgb(0 0 0 / 0.1)',
       }}
     >
-      <CardContent>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          <Assignment sx={{ mr: 1 }} />
-          {column.title} ({tasks.length})
-        </Typography>
+      <Box sx={{ 
+        p: 2, 
+        borderBottom: '1px solid #e2e8f0',
+        background: `linear-gradient(135deg, ${column.accentColor}15 0%, ${column.accentColor}05 100%)`
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ 
+              p: 0.5, 
+              borderRadius: 1.5, 
+              backgroundColor: column.accentColor + '20',
+              color: column.accentColor 
+            }}>
+              {getColumnIcon(column.key)}
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              {column.title}
+            </Typography>
+          </Box>
+          <Chip 
+            label={tasks.length} 
+            size="small" 
+            sx={{ 
+              backgroundColor: column.accentColor + '20',
+              color: column.accentColor,
+              fontWeight: 600
+            }} 
+          />
+        </Box>
+      </Box>
+      <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto' }}>
         {children}
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 };
 
@@ -91,6 +117,16 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const getPriorityBorderColor = (priority) => {
+    switch (priority) {
+      case 'critical': return '#ef4444';
+      case 'high': return '#f59e0b';
+      case 'medium': return '#2563eb';
+      case 'low': return '#10b981';
+      default: return '#64748b';
+    }
+  };
+
   return (
     <Card 
       ref={setNodeRef} 
@@ -98,64 +134,90 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
       sx={{ 
         mb: 2, 
         cursor: isDragging ? 'grabbing' : 'grab',
-        position: 'relative'
+        position: 'relative',
+        borderLeft: `4px solid ${getPriorityBorderColor(task.priority)}`,
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          boxShadow: '0 4px 12px 0 rgb(0 0 0 / 0.15)',
+          transform: 'translateY(-1px)',
+        }
       }}
       {...attributes}
       {...listeners}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-          <DragIndicator sx={{ color: 'text.secondary', mr: 1, mt: 0.5 }} />
-          <Typography variant="subtitle1" gutterBottom sx={{ flexGrow: 1 }}>
-            {task.title}
-          </Typography>
+      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="subtitle1" sx={{ 
+              fontWeight: 600, 
+              mb: 0.5,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}>
+              {task.title}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {task.project?.name}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <DragIndicator sx={{ color: 'text.secondary', fontSize: 16 }} />
+            <MoreVert sx={{ color: 'text.secondary', fontSize: 16 }} />
+          </Box>
         </Box>
         
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {task.description?.substring(0, 100)}{task.description?.length > 100 ? '...' : ''}
-        </Typography>
+        {task.description && (
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            sx={{ 
+              mb: 2,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              lineHeight: 1.4
+            }}
+          >
+            {task.description}
+          </Typography>
+        )}
         
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           <Chip 
+            icon={<Flag sx={{ fontSize: 14 }} />}
             label={task.priority} 
             color={getPriorityColor(task.priority)}
             size="small"
+            sx={{ fontWeight: 500, '& .MuiChip-label': { px: 1 } }}
           />
-          <Typography variant="body2" color="text.secondary">
-            {task.project?.name}
-          </Typography>
         </Box>
         
-        {task.assignee && (
-          <Typography variant="body2" color="text.secondary">
-            Assigned to: {task.assignee.username}
-          </Typography>
-        )}
-        
-        {task.due_date && (
-          <Typography variant="body2" color="text.secondary">
-            Due: {new Date(task.due_date).toLocaleDateString()}
-          </Typography>
-        )}
-
-        {/* Status change buttons */}
-        <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {statusColumns
-            .filter(col => col.key !== task.status)
-            .slice(0, 2) // Show only 2 quick actions to save space
-            .map(col => (
-              <Button
-                key={col.key}
-                size="small"
-                variant="outlined"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange(task.id, col.key);
-                }}
-              >
-                → {col.title}
-              </Button>
-            ))}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1.5, borderTop: '1px solid #e2e8f0' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {task.assignee ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Person sx={{ fontSize: 14, color: 'text.secondary' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {task.assignee.username}
+                </Typography>
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Unassigned
+              </Typography>
+            )}
+          </Box>
+          {task.due_date && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {new Date(task.due_date).toLocaleDateString()}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </CardContent>
     </Card>
@@ -301,10 +363,10 @@ const Tasks = () => {
   };
 
   const statusColumns = [
-    { key: 'todo', title: 'To Do', color: '#f5f5f5' },
-    { key: 'in_progress', title: 'In Progress', color: '#e3f2fd' },
-    { key: 'review', title: 'Review', color: '#fff3e0' },
-    { key: 'done', title: 'Done', color: '#e8f5e8' },
+    { key: 'todo', title: 'To Do', color: '#f8fafc', accentColor: '#64748b' },
+    { key: 'in_progress', title: 'In Progress', color: '#eff6ff', accentColor: '#2563eb' },
+    { key: 'review', title: 'Review', color: '#fffbeb', accentColor: '#f59e0b' },
+    { key: 'done', title: 'Done', color: '#f0fdf4', accentColor: '#10b981' },
   ];
 
   const handleDragStart = (event) => {
@@ -368,17 +430,49 @@ const Tasks = () => {
       onDragEnd={handleDragEnd}
     >
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" gutterBottom>
-            Tasks Board
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <FormControl sx={{ minWidth: 200 }}>
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+                Task Board
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Organize and track your tasks with an intuitive Kanban board
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Button
+                variant="outlined"
+                startIcon={<FilterList />}
+                sx={{ borderRadius: 2 }}
+              >
+                Filters
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => setOpenDialog(true)}
+                sx={{ 
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1e40af 0%, #5b21b6 100%)',
+                  }
+                }}
+              >
+                New Task
+              </Button>
+            </Box>
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
+            <FormControl sx={{ minWidth: 220 }}>
               <InputLabel>Filter by Project</InputLabel>
               <Select
                 value={selectedProject || ''}
                 onChange={(e) => setSelectedProject(e.target.value || null)}
                 size="small"
+                sx={{ borderRadius: 2 }}
               >
                 <MenuItem value="">All Projects</MenuItem>
                 {projects.map((project) => (
@@ -388,49 +482,74 @@ const Tasks = () => {
                 ))}
               </Select>
             </FormControl>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setOpenDialog(true)}
-            >
-              New Task
-            </Button>
+            
+            {filteredTasks.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  {filteredTasks.length} tasks
+                </Typography>
+                <Typography variant="body2" color="text.secondary">•</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {tasksByStatus.done.length} completed
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Box>
 
         {/* Online Users for Selected Project */}
         {selectedProject && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Collaborators Online
-            </Typography>
-            <UserPresence projectId={selectedProject} showLabels maxUsers={8} />
-          </Box>
+          <Card sx={{ mb: 3, border: '1px solid #e2e8f0' }}>
+            <CardContent sx={{ py: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Team Collaboration
+                </Typography>
+                <UserPresence projectId={selectedProject} showLabels maxUsers={8} />
+              </Box>
+            </CardContent>
+          </Card>
         )}
 
         {/* Kanban Board */}
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2 }}>
           {statusColumns.map((column) => (
-            <Grid item xs={12} md={3} key={column.key}>
+            <Box key={column.key} sx={{ minWidth: 280, flexShrink: 0 }}>
               <DroppableColumn column={column} tasks={tasksByStatus[column.key]}>
                 <SortableContext 
                   items={tasksByStatus[column.key].map(task => task.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {tasksByStatus[column.key].map((task) => (
-                    <DraggableTaskCard
-                      key={task.id}
-                      task={task}
-                      getPriorityColor={getPriorityColor}
-                      statusColumns={statusColumns}
-                      handleStatusChange={handleStatusChange}
-                    />
-                  ))}
+                  {tasksByStatus[column.key].length === 0 ? (
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      py: 4, 
+                      color: 'text.secondary',
+                      border: '2px dashed #e2e8f0',
+                      borderRadius: 2,
+                      backgroundColor: 'background.paper'
+                    }}>
+                      <Assignment sx={{ fontSize: 32, mb: 1, opacity: 0.5 }} />
+                      <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                        No tasks in {column.title.toLowerCase()}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    tasksByStatus[column.key].map((task) => (
+                      <DraggableTaskCard
+                        key={task.id}
+                        task={task}
+                        getPriorityColor={getPriorityColor}
+                        statusColumns={statusColumns}
+                        handleStatusChange={handleStatusChange}
+                      />
+                    ))
+                  )}
                 </SortableContext>
               </DroppableColumn>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
 
         <DragOverlay>
           {activeTask ? (
