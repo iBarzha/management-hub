@@ -55,14 +55,36 @@ const DroppableColumn = ({ column, tasks, children }) => {
       sx={{ 
         backgroundColor: 'background.paper',
         borderRadius: 3,
-        border: isOver ? `2px solid ${column.accentColor}` : '1px solid #e2e8f0',
-        transition: 'none',
+        border: isOver ? `3px solid ${column.accentColor}` : '1px solid #e2e8f0',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         minHeight: '70vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: isOver ? '0 12px 32px rgba(0, 0, 0, 0.18)' : '0 2px 8px rgba(0, 0, 0, 0.08)',
-        transform: isOver ? 'scale(1.02)' : 'scale(1)',
-        background: isOver ? `linear-gradient(135deg, ${column.accentColor}08 0%, ${column.accentColor}03 100%)` : 'background.paper',
+        boxShadow: isOver ? 
+          `0 20px 40px rgba(0, 0, 0, 0.15), 0 0 30px ${column.accentColor}30` : 
+          '0 2px 8px rgba(0, 0, 0, 0.08)',
+        transform: isOver ? 'scale(1.03) translateY(-2px)' : 'scale(1)',
+        background: isOver ? 
+          `linear-gradient(135deg, ${column.accentColor}15 0%, ${column.accentColor}05 100%)` : 
+          'background.paper',
+        position: 'relative',
+        '&::before': isOver ? {
+          content: '""',
+          position: 'absolute',
+          top: -1,
+          left: -1,
+          right: -1,
+          bottom: -1,
+          background: `linear-gradient(45deg, ${column.accentColor}, transparent, ${column.accentColor})`,
+          borderRadius: 3,
+          opacity: 0.6,
+          zIndex: -1,
+          animation: 'columnGlow 1.5s ease-in-out infinite alternate',
+        } : {},
+        '@keyframes columnGlow': {
+          '0%': { opacity: 0.3 },
+          '100%': { opacity: 0.7 }
+        }
       }}
     >
       <Box sx={{ 
@@ -103,7 +125,7 @@ const DroppableColumn = ({ column, tasks, children }) => {
 };
 
 // Draggable Task Card Component
-const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatusChange }) => {
+const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatusChange, successAnimations }) => {
   const {
     attributes,
     listeners,
@@ -142,15 +164,35 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
         cursor: isDragging ? 'grabbing' : 'grab',
         position: 'relative',
         borderLeft: `4px solid ${getPriorityBorderColor(task.priority)}`,
-        transition: 'none', // No transitions
+        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         transformOrigin: 'center',
         '&:hover': {
-          boxShadow: isDragging ? undefined : '0 8px 25px 0 rgba(0, 0, 0, 0.15)',
-          transform: isDragging ? undefined : 'translateY(-2px) scale(1.01)',
+          boxShadow: isDragging ? undefined : 
+            `0 12px 30px rgba(0, 0, 0, 0.15), 
+             0 0 20px ${getPriorityBorderColor(task.priority)}20`,
+          transform: isDragging ? undefined : 'translateY(-4px) scale(1.02)',
         },
         '&:active': {
-          transform: 'scale(0.98)',
-        }
+          transform: isDragging ? undefined : 'translateY(-2px) scale(0.98)',
+        },
+        // Success animation
+        ...(successAnimations[task.id] && {
+          animation: 'successPulse 0.6s ease-out',
+          '@keyframes successPulse': {
+            '0%': { 
+              transform: 'scale(1)',
+              boxShadow: `0 0 0 0 ${getPriorityBorderColor(task.priority)}40`
+            },
+            '50%': { 
+              transform: 'scale(1.05)',
+              boxShadow: `0 0 0 10px ${getPriorityBorderColor(task.priority)}20`
+            },
+            '100%': { 
+              transform: 'scale(1)',
+              boxShadow: `0 0 0 0 ${getPriorityBorderColor(task.priority)}00`
+            }
+          }
+        })
       }}
       {...attributes}
       {...listeners}
@@ -244,6 +286,7 @@ const Tasks = () => {
   const [activeId, setActiveId] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [optimisticUpdates, setOptimisticUpdates] = useState({});
+  const [successAnimations, setSuccessAnimations] = useState({});
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -393,6 +436,10 @@ const Tasks = () => {
 
   const handleDragStart = (event) => {
     setActiveId(event.active.id);
+    // Add a subtle haptic feedback (if supported)
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
   };
 
   const handleDragEnd = (event) => {
@@ -420,6 +467,16 @@ const Tasks = () => {
       setActiveId(null);
       // Make the actual API call
       handleStatusChange(activeId, overColumn.key).then(() => {
+        // Add success animation
+        setSuccessAnimations(prev => ({ ...prev, [activeId]: true }));
+        setTimeout(() => {
+          setSuccessAnimations(prev => {
+            const updated = { ...prev };
+            delete updated[activeId];
+            return updated;
+          });
+        }, 600);
+        
         // Clear optimistic update after API success
         setOptimisticUpdates(prev => {
           const updated = { ...prev };
@@ -447,6 +504,16 @@ const Tasks = () => {
       setActiveId(null);
       // Make the actual API call
       handleStatusChange(activeId, overTask.status).then(() => {
+        // Add success animation
+        setSuccessAnimations(prev => ({ ...prev, [activeId]: true }));
+        setTimeout(() => {
+          setSuccessAnimations(prev => {
+            const updated = { ...prev };
+            delete updated[activeId];
+            return updated;
+          });
+        }, 600);
+        
         // Clear optimistic update after API success
         setOptimisticUpdates(prev => {
           const updated = { ...prev };
@@ -608,6 +675,7 @@ const Tasks = () => {
                         getPriorityColor={getPriorityColor}
                         statusColumns={statusColumns}
                         handleStatusChange={handleStatusChange}
+                        successAnimations={successAnimations}
                       />
                     ))
                   )}
@@ -618,36 +686,142 @@ const Tasks = () => {
         </Box>
 
         <DragOverlay
-          dropAnimation={null} // Disable drop animation completely
+          dropAnimation={null}
+          style={{
+            cursor: 'grabbing',
+          }}
         >
           {activeTask ? (
             <Card sx={{ 
-              opacity: 0.9,
-              transform: 'rotate(2deg) scale(1.03)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+              opacity: 0.95,
+              transform: 'rotate(5deg) scale(1.08)',
+              boxShadow: `
+                0 30px 60px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 0 40px ${activeTask.priority === 'critical' ? 'rgba(239, 68, 68, 0.3)' : 
+                           activeTask.priority === 'high' ? 'rgba(245, 158, 11, 0.3)' :
+                           activeTask.priority === 'medium' ? 'rgba(37, 99, 235, 0.3)' : 'rgba(16, 185, 129, 0.3)'}
+              `,
               borderLeft: `4px solid ${activeTask.priority === 'critical' ? '#ef4444' : 
                                       activeTask.priority === 'high' ? '#f59e0b' :
                                       activeTask.priority === 'medium' ? '#2563eb' : '#10b981'}`,
+              borderRadius: 3,
+              background: `
+                linear-gradient(135deg, 
+                  rgba(255, 255, 255, 0.95) 0%, 
+                  rgba(255, 255, 255, 0.9) 100%
+                ),
+                linear-gradient(135deg,
+                  ${activeTask.priority === 'critical' ? 'rgba(239, 68, 68, 0.05)' : 
+                    activeTask.priority === 'high' ? 'rgba(245, 158, 11, 0.05)' :
+                    activeTask.priority === 'medium' ? 'rgba(37, 99, 235, 0.05)' : 'rgba(16, 185, 129, 0.05)'} 0%,
+                  transparent 100%
+                )
+              `,
+              backdropFilter: 'blur(20px)',
               cursor: 'grabbing',
               pointerEvents: 'none',
-              transition: 'none' // No transitions on drag overlay
+              transition: 'none',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: -2,
+                left: -2,
+                right: -2,
+                bottom: -2,
+                background: `linear-gradient(45deg, 
+                  ${activeTask.priority === 'critical' ? '#ef4444' : 
+                    activeTask.priority === 'high' ? '#f59e0b' :
+                    activeTask.priority === 'medium' ? '#2563eb' : '#10b981'}, 
+                  transparent, 
+                  ${activeTask.priority === 'critical' ? '#ef4444' : 
+                    activeTask.priority === 'high' ? '#f59e0b' :
+                    activeTask.priority === 'medium' ? '#2563eb' : '#10b981'}
+                )`,
+                borderRadius: 3,
+                opacity: 0.3,
+                zIndex: -1,
+                animation: 'dragGlow 2s ease-in-out infinite alternate',
+              },
+              '@keyframes dragGlow': {
+                '0%': { 
+                  opacity: 0.3,
+                  transform: 'scale(1)',
+                },
+                '100%': { 
+                  opacity: 0.6,
+                  transform: 'scale(1.02)',
+                }
+              }
             }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                  {activeTask.title}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    fontWeight: 700, 
+                    color: 'text.primary',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+                    lineHeight: 1.3
+                  }}>
+                    {activeTask.title}
+                  </Typography>
+                  <DragIndicator sx={{ 
+                    color: activeTask.priority === 'critical' ? '#ef4444' : 
+                           activeTask.priority === 'high' ? '#f59e0b' :
+                           activeTask.priority === 'medium' ? '#2563eb' : '#10b981',
+                    fontSize: 20,
+                    opacity: 0.8
+                  }} />
+                </Box>
+                
+                {activeTask.description && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      mb: 2,
+                      opacity: 0.8,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {activeTask.description}
+                  </Typography>
+                )}
+                
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
                   <Chip 
                     icon={<Flag sx={{ fontSize: 14 }} />}
                     label={activeTask.priority} 
                     color={getPriorityColor(activeTask.priority)}
                     size="small"
-                    sx={{ fontWeight: 500 }}
+                    sx={{ 
+                      fontWeight: 600,
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                      '& .MuiChip-label': { px: 1.5 }
+                    }}
                   />
                   {activeTask.project && (
-                    <Typography variant="caption" color="text.secondary">
-                      {activeTask.project.name}
-                    </Typography>
+                    <Chip
+                      label={activeTask.project.name}
+                      size="small"
+                      variant="outlined"
+                      sx={{ 
+                        fontWeight: 500,
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        '& .MuiChip-label': { px: 1.5 }
+                      }}
+                    />
+                  )}
+                  {activeTask.assignee && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+                      <Person sx={{ fontSize: 14, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        {activeTask.assignee.username}
+                      </Typography>
+                    </Box>
                   )}
                 </Box>
               </CardContent>
