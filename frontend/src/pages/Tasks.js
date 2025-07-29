@@ -56,11 +56,13 @@ const DroppableColumn = ({ column, tasks, children }) => {
         backgroundColor: 'background.paper',
         borderRadius: 3,
         border: isOver ? `2px solid ${column.accentColor}` : '1px solid #e2e8f0',
-        transition: 'all 0.2s ease',
+        transition: 'none',
         minHeight: '70vh',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: isOver ? '0 8px 25px 0 rgb(0 0 0 / 0.15)' : '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+        boxShadow: isOver ? '0 12px 32px rgba(0, 0, 0, 0.18)' : '0 2px 8px rgba(0, 0, 0, 0.08)',
+        transform: isOver ? 'scale(1.02)' : 'scale(1)',
+        background: isOver ? `linear-gradient(135deg, ${column.accentColor}08 0%, ${column.accentColor}03 100%)` : 'background.paper',
       }}
     >
       <Box sx={{ 
@@ -109,12 +111,16 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    animateLayoutChanges: () => false // Disable layout animations to prevent snap-back
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: 'none', // No transitions at all
+    opacity: isDragging ? 0 : 1,
+    pointerEvents: isDragging ? 'none' : 'auto',
   };
 
   const getPriorityBorderColor = (priority) => {
@@ -136,10 +142,14 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
         cursor: isDragging ? 'grabbing' : 'grab',
         position: 'relative',
         borderLeft: `4px solid ${getPriorityBorderColor(task.priority)}`,
-        transition: 'all 0.2s ease',
+        transition: 'none', // No transitions
+        transformOrigin: 'center',
         '&:hover': {
-          boxShadow: '0 4px 12px 0 rgb(0 0 0 / 0.15)',
-          transform: 'translateY(-1px)',
+          boxShadow: isDragging ? undefined : '0 8px 25px 0 rgba(0, 0, 0, 0.15)',
+          transform: isDragging ? undefined : 'translateY(-2px) scale(1.01)',
+        },
+        '&:active': {
+          transform: 'scale(0.98)',
         }
       }}
       {...attributes}
@@ -233,6 +243,7 @@ const Tasks = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [optimisticUpdates, setOptimisticUpdates] = useState({});
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -343,11 +354,14 @@ const Tasks = () => {
             updated_by: user.username
           });
         }
+        return Promise.resolve();
       } else {
         console.error('Failed to update task status:', result.error);
+        return Promise.reject(result.error);
       }
     } catch (err) {
       console.error('Failed to update task status:', err);
+      return Promise.reject(err);
     }
   };
 
@@ -355,11 +369,19 @@ const Tasks = () => {
     ? tasks.filter(task => task.project?.id === selectedProject)
     : tasks;
 
+  // Apply optimistic updates to tasks
+  const tasksWithOptimisticUpdates = filteredTasks.map(task => {
+    if (optimisticUpdates[task.id]) {
+      return { ...task, status: optimisticUpdates[task.id] };
+    }
+    return task;
+  });
+
   const tasksByStatus = {
-    todo: filteredTasks.filter(task => task.status === 'todo'),
-    in_progress: filteredTasks.filter(task => task.status === 'in_progress'),
-    review: filteredTasks.filter(task => task.status === 'review'),
-    done: filteredTasks.filter(task => task.status === 'done'),
+    todo: tasksWithOptimisticUpdates.filter(task => task.status === 'todo'),
+    in_progress: tasksWithOptimisticUpdates.filter(task => task.status === 'in_progress'),
+    review: tasksWithOptimisticUpdates.filter(task => task.status === 'review'),
+    done: tasksWithOptimisticUpdates.filter(task => task.status === 'done'),
   };
 
   const statusColumns = [
@@ -375,9 +397,11 @@ const Tasks = () => {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
+    
+    if (!over) {
+      setActiveId(null);
+      return;
+    }
 
     const activeId = active.id;
     const overId = over.id;
@@ -390,7 +414,26 @@ const Tasks = () => {
     const overColumn = statusColumns.find(col => col.key === overId);
     if (overColumn && draggedTask.status !== overColumn.key) {
       console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overColumn.key}`);
-      handleStatusChange(activeId, overColumn.key);
+      // Optimistically update the UI immediately
+      setOptimisticUpdates(prev => ({ ...prev, [activeId]: overColumn.key }));
+      // Clear active immediately to prevent snap-back animation
+      setActiveId(null);
+      // Make the actual API call
+      handleStatusChange(activeId, overColumn.key).then(() => {
+        // Clear optimistic update after API success
+        setOptimisticUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[activeId];
+          return updated;
+        });
+      }).catch(() => {
+        // Revert optimistic update on error
+        setOptimisticUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[activeId];
+          return updated;
+        });
+      });
       return;
     }
 
@@ -398,8 +441,31 @@ const Tasks = () => {
     const overTask = filteredTasks.find(t => t.id === overId);
     if (overTask && draggedTask.status !== overTask.status) {
       console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overTask.status}`);
-      handleStatusChange(activeId, overTask.status);
+      // Optimistically update the UI immediately
+      setOptimisticUpdates(prev => ({ ...prev, [activeId]: overTask.status }));
+      // Clear active immediately to prevent snap-back animation
+      setActiveId(null);
+      // Make the actual API call
+      handleStatusChange(activeId, overTask.status).then(() => {
+        // Clear optimistic update after API success
+        setOptimisticUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[activeId];
+          return updated;
+        });
+      }).catch(() => {
+        // Revert optimistic update on error
+        setOptimisticUpdates(prev => {
+          const updated = { ...prev };
+          delete updated[activeId];
+          return updated;
+        });
+      });
+      return;
     }
+    
+    // If no status change, just clear the active state
+    setActiveId(null);
   };
 
   if (isLoading) {
@@ -551,18 +617,39 @@ const Tasks = () => {
           ))}
         </Box>
 
-        <DragOverlay>
+        <DragOverlay
+          dropAnimation={null} // Disable drop animation completely
+        >
           {activeTask ? (
-            <Card sx={{ opacity: 0.8 }}>
-              <CardContent sx={{ p: 2 }}>
-                <Typography variant="subtitle1">
+            <Card sx={{ 
+              opacity: 0.9,
+              transform: 'rotate(2deg) scale(1.03)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+              borderLeft: `4px solid ${activeTask.priority === 'critical' ? '#ef4444' : 
+                                      activeTask.priority === 'high' ? '#f59e0b' :
+                                      activeTask.priority === 'medium' ? '#2563eb' : '#10b981'}`,
+              cursor: 'grabbing',
+              pointerEvents: 'none',
+              transition: 'none' // No transitions on drag overlay
+            }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
                   {activeTask.title}
                 </Typography>
-                <Chip 
-                  label={activeTask.priority} 
-                  color={getPriorityColor(activeTask.priority)}
-                  size="small"
-                />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip 
+                    icon={<Flag sx={{ fontSize: 14 }} />}
+                    label={activeTask.priority} 
+                    color={getPriorityColor(activeTask.priority)}
+                    size="small"
+                    sx={{ fontWeight: 500 }}
+                  />
+                  {activeTask.project && (
+                    <Typography variant="caption" color="text.secondary">
+                      {activeTask.project.name}
+                    </Typography>
+                  )}
+                </Box>
               </CardContent>
             </Card>
           ) : null}
