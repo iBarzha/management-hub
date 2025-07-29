@@ -6,7 +6,8 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, 
-  AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon
+  AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon,
+  Integration as IntegrationIcon
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
@@ -83,6 +84,7 @@ const Layout = () => {
     { text: 'Teams', icon: <Group />, path: '/teams' },
     { text: 'Tasks', icon: <Assignment />, path: '/tasks' },
     { text: 'Chat', icon: <ChatIcon />, path: '/chat' },
+    { text: 'Integrations', icon: <IntegrationIcon />, path: '/integrations' },
   ];
 
   const drawer = (
@@ -115,7 +117,7 @@ const Layout = () => {
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
-              selected={location.pathname === item.path}
+              selected={location.pathname === item.path || location.pathname.startsWith(item.path)}
               onClick={() => navigate(item.path)}
               sx={{
                 borderRadius: 2,
@@ -138,7 +140,7 @@ const Layout = () => {
               <ListItemText 
                 primary={item.text} 
                 primaryTypographyProps={{ 
-                  fontWeight: location.pathname === item.path ? 600 : 500 
+                  fontWeight: (location.pathname === item.path || location.pathname.startsWith(item.path)) ? 600 : 500 
                 }} 
               />
             </ListItemButton>
@@ -178,7 +180,7 @@ const Layout = () => {
           </IconButton>
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h5" component="div" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
+              {menuItems.find((item) => item.path === location.pathname || location.pathname.startsWith(item.path))?.text || 'Dashboard'}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
               Welcome back, {user?.username}

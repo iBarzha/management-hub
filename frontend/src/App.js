@@ -17,6 +17,7 @@ import Projects from './pages/Projects';
 import Teams from './pages/Teams';
 import Tasks from './pages/Tasks';
 import ChatPage from './pages/Chat';
+import Integrations from './pages/Integrations';
 
 const theme = createTheme({
   palette: {
@@ -145,6 +146,8 @@ function App() {
             <Route path="teams" element={<Teams />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="chat" element={<ChatPage />} />
+            <Route path="integrations" element={<Integrations />} />
+            <Route path="integrations/github/callback" element={<Integrations />} />
           </Route>
         </Routes>
       </Router>
