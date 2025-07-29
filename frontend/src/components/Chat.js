@@ -1,19 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Paper,
-  TextField,
-  IconButton,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Chip,
-  Divider
-} from '@mui/material';
-import { Send as SendIcon } from '@mui/icons-material';
+import {Box, Card, CardContent, TextField, IconButton, Typography, List, ListItem, ListItemText, ListItemAvatar,
+  Avatar, Chip, Divider, Badge, Stack} from '@mui/material';
+import { 
+  Send as SendIcon, 
+  Circle as CircleIcon,
+  EmojiEmotions,
+  AttachFile
+} from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import webSocketService from '../services/websocket';
 import api from '../services/api';
@@ -145,106 +138,264 @@ const Chat = ({ room, height = 400 }) => {
 
   if (loading) {
     return (
-      <Paper sx={{ p: 2, height }}>
-        <Typography>Loading chat...</Typography>
-      </Paper>
+      <Card sx={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CardContent>
+          <Typography variant="body2" color="text.secondary">
+            Loading chat messages...
+          </Typography>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <Paper sx={{ display: 'flex', flexDirection: 'column', height }}>
+    <Card sx={{ display: 'flex', flexDirection: 'column', height, overflow: 'hidden' }}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" gutterBottom>
-          Chat: {room}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ 
+        p: 3, 
+        borderBottom: '1px solid #e2e8f0',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Team Chat
+          </Typography>
+          <Badge 
+            badgeContent={onlineUsers.length} 
+            color="success"
+            sx={{
+              '& .MuiBadge-badge': {
+                backgroundColor: '#10b981',
+                color: 'white'
+              }
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Online
+            </Typography>
+          </Badge>
+        </Box>
+        
+        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 1 }}>
           {onlineUsers.map((username) => (
             <Chip
               key={username}
               label={username}
               size="small"
-              color={username === user.username ? 'primary' : 'default'}
-              avatar={<Avatar sx={{ width: 20, height: 20, fontSize: '0.7rem' }}>
-                {getUserInitials(username)}
-              </Avatar>}
+              color={username === user?.username ? 'primary' : 'default'}
+              variant={username === user?.username ? 'filled' : 'outlined'}
+              avatar={
+                <Badge
+                  overlap="circular"
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  badgeContent={
+                    <CircleIcon sx={{ 
+                      fontSize: 8, 
+                      color: '#10b981',
+                      backgroundColor: 'white',
+                      borderRadius: '50%'
+                    }} />
+                  }
+                >
+                  <Avatar sx={{ width: 20, height: 20, fontSize: '0.7rem', bgcolor: 'primary.main' }}>
+                    {getUserInitials(username)}
+                  </Avatar>
+                </Badge>
+              }
+              sx={{ 
+                borderRadius: 2,
+                '& .MuiChip-label': { fontWeight: 500 }
+              }}
             />
           ))}
-        </Box>
+        </Stack>
       </Box>
 
       {/* Messages */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
-        <List dense>
-          {messages.map((message, index) => (
-            <ListItem key={index} alignItems="flex-start">
-              <ListItemAvatar>
-                <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem' }}>
-                  {getUserInitials(message.user)}
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="subtitle2" component="span">
-                      {message.user}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatTimestamp(message.timestamp)}
-                    </Typography>
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2, backgroundColor: '#fafafa' }}>
+        {messages.length === 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            height: '100%',
+            textAlign: 'center'
+          }}>
+            <Typography variant="body2" color="text.secondary">
+              No messages yet. Start the conversation!
+            </Typography>
+          </Box>
+        ) : (
+          <Stack spacing={2}>
+            {messages.map((message, index) => {
+              const isOwnMessage = message.user === user?.username;
+              const prevMessage = messages[index - 1];
+              const isNewSender = !prevMessage || prevMessage.user !== message.user;
+              
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    display: 'flex',
+                    flexDirection: isOwnMessage ? 'row-reverse' : 'row',
+                    alignItems: 'flex-end',
+                    gap: 1,
+                    mt: isNewSender ? 2 : 0.5
+                  }}
+                >
+                  {!isOwnMessage && isNewSender && (
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        fontSize: '0.8rem',
+                        bgcolor: 'primary.main'
+                      }}
+                    >
+                      {getUserInitials(message.user)}
+                    </Avatar>
+                  )}
+                  {!isOwnMessage && !isNewSender && (
+                    <Box sx={{ width: 32 }} />
+                  )}
+                  
+                  <Box sx={{ maxWidth: '70%' }}>
+                    {isNewSender && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        mb: 0.5,
+                        justifyContent: isOwnMessage ? 'flex-end' : 'flex-start'
+                      }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                          {message.user}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatTimestamp(message.timestamp)}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    <Card
+                      sx={{
+                        p: 1.5,
+                        backgroundColor: isOwnMessage ? 'primary.main' : 'background.paper',
+                        color: isOwnMessage ? 'white' : 'text.primary',
+                        borderRadius: 2,
+                        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                        {message.message}
+                      </Typography>
+                    </Card>
                   </Box>
-                }
-                secondary={message.message}
-              />
-            </ListItem>
-          ))}
-          
-          {/* Typing indicators */}
-          {typingUsers.length > 0 && (
-            <>
-              <Divider />
-              <ListItem>
-                <ListItemText
-                  secondary={
-                    <Typography variant="caption" color="text.secondary" fontStyle="italic">
-                      {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            </>
-          )}
-        </List>
+                  
+                  {isOwnMessage && isNewSender && (
+                    <Avatar 
+                      sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        fontSize: '0.8rem',
+                        bgcolor: 'primary.main'
+                      }}
+                    >
+                      {getUserInitials(message.user)}
+                    </Avatar>
+                  )}
+                  {isOwnMessage && !isNewSender && (
+                    <Box sx={{ width: 32 }} />
+                  )}
+                </Box>
+              );
+            })}
+            
+            {/* Typing indicators */}
+            {typingUsers.length > 0 && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 5 }}>
+                <Avatar sx={{ width: 24, height: 24, bgcolor: 'grey.400' }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem' }}>...</Typography>
+                </Avatar>
+                <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                  {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        )}
         <div ref={messagesEndRef} />
       </Box>
 
       {/* Message input */}
-      <Box component="form" onSubmit={handleSendMessage} sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={handleTyping}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage(e);
-              }
-            }}
-          />
-          <IconButton 
-            type="submit" 
-            color="primary" 
-            disabled={!newMessage.trim()}
-            sx={{ minWidth: 40 }}
-          >
-            <SendIcon />
-          </IconButton>
+      <Box sx={{ 
+        p: 2, 
+        borderTop: '1px solid #e2e8f0',
+        backgroundColor: 'background.paper'
+      }}>
+        <Box component="form" onSubmit={handleSendMessage}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={4}
+              size="small"
+              placeholder="Type a message..."
+              value={newMessage}
+              onChange={handleTyping}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  backgroundColor: 'background.paper',
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                  }
+                }
+              }}
+            />
+            <IconButton 
+              size="small"
+              sx={{ color: 'text.secondary', mb: 0.5 }}
+            >
+              <EmojiEmotions />
+            </IconButton>
+            <IconButton 
+              size="small"
+              sx={{ color: 'text.secondary', mb: 0.5 }}
+            >
+              <AttachFile />
+            </IconButton>
+            <IconButton 
+              type="submit" 
+              disabled={!newMessage.trim()}
+              sx={{ 
+                bgcolor: 'primary.main',
+                color: 'white',
+                mb: 0.5,
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                },
+                '&:disabled': {
+                  bgcolor: 'grey.300',
+                  color: 'grey.500'
+                }
+              }}
+            >
+              <SendIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
       </Box>
-    </Paper>
+    </Card>
   );
 };
 
