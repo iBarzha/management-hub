@@ -133,12 +133,61 @@ const Dashboard = () => {
                 </Button>
               </Box>
               <Stack spacing={3}>
-                {[
-                  { user: 'John Doe', action: 'completed task', item: 'Design Homepage', time: '2 hours ago', avatar: 'J' },
-                  { user: 'Jane Smith', action: 'created project', item: 'Mobile App', time: '4 hours ago', avatar: 'J' },
-                  { user: 'Mike Johnson', action: 'joined team', item: 'Development Team', time: '1 day ago', avatar: 'M' },
-                  { user: 'Sarah Wilson', action: 'updated task', item: 'API Integration', time: '2 days ago', avatar: 'S' }
-                ].map((activity, index) => (
+                {(() => {
+                  // Generate real recent activities from tasks and projects
+                  const recentActivities = [];
+                  
+                  // Add recently completed tasks
+                  const recentCompletedTasks = tasks
+                    .filter(task => task.status === 'done')
+                    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+                    .slice(0, 2);
+                  
+                  recentCompletedTasks.forEach(task => {
+                    const timeAgo = task.updated_at ? 
+                      `${Math.floor((new Date() - new Date(task.updated_at)) / (1000 * 60 * 60))} hours ago` :
+                      'Recently';
+                    recentActivities.push({
+                      user: task.assignee?.username || 'Someone',
+                      action: 'completed task',
+                      item: task.title,
+                      time: timeAgo,
+                      avatar: (task.assignee?.username || 'U')[0].toUpperCase()
+                    });
+                  });
+                  
+                  // Add recently created projects
+                  const recentProjects = projects
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                    .slice(0, 2);
+                  
+                  recentProjects.forEach(project => {
+                    const timeAgo = `${Math.floor((new Date() - new Date(project.created_at)) / (1000 * 60 * 60 * 24))} days ago`;
+                    recentActivities.push({
+                      user: project.owner?.username || user?.username || 'Someone',
+                      action: 'created project',
+                      item: project.name,
+                      time: timeAgo,
+                      avatar: (project.owner?.username || user?.username || 'U')[0].toUpperCase()
+                    });
+                  });
+                  
+                  // If no real activities, show a helpful message
+                  if (recentActivities.length === 0) {
+                    return (
+                      <Box sx={{ textAlign: 'center', py: 4 }}>
+                        <Assignment sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          No recent activities yet
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Start by creating tasks or projects to see activity here
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                  
+                  return recentActivities.slice(0, 4).map((activity, index) => (
                   <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
                       {activity.avatar}
@@ -155,7 +204,8 @@ const Dashboard = () => {
                       </Box>
                     </Box>
                   </Box>
-                ))}
+                  ));
+                })()}
               </Stack>
             </CardContent>
           </Card>
@@ -243,11 +293,57 @@ const Dashboard = () => {
                 </Button>
               </Box>
               <Grid container spacing={2}>
-                {[
-                  { name: 'Website Redesign', deadline: 'Tomorrow', priority: 'high', project: 'Design System' },
-                  { name: 'API Documentation', deadline: 'In 3 days', priority: 'medium', project: 'Backend API' },
-                  { name: 'User Testing', deadline: 'Next week', priority: 'low', project: 'Mobile App' }
-                ].map((task, index) => (
+                {(() => {
+                  // Get tasks with due dates that are upcoming
+                  const upcomingTasks = tasks
+                    .filter(task => task.due_date && task.status !== 'done')
+                    .map(task => {
+                      const dueDate = new Date(task.due_date);
+                      const now = new Date();
+                      const daysDiff = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                      
+                      let deadlineText = '';
+                      if (daysDiff < 0) {
+                        deadlineText = `${Math.abs(daysDiff)} days overdue`;
+                      } else if (daysDiff === 0) {
+                        deadlineText = 'Today';
+                      } else if (daysDiff === 1) {
+                        deadlineText = 'Tomorrow';
+                      } else if (daysDiff <= 7) {
+                        deadlineText = `In ${daysDiff} days`;
+                      } else {
+                        deadlineText = `In ${Math.ceil(daysDiff / 7)} weeks`;
+                      }
+                      
+                      return {
+                        name: task.title,
+                        deadline: deadlineText,
+                        priority: task.priority,
+                        project: task.project?.name || 'No Project',
+                        daysDiff: daysDiff,
+                        isOverdue: daysDiff < 0
+                      };
+                    })
+                    .sort((a, b) => a.daysDiff - b.daysDiff) // Sort by urgency
+                    .slice(0, 6); // Show up to 6 upcoming tasks
+                  
+                  if (upcomingTasks.length === 0) {
+                    return (
+                      <Grid item xs={12}>
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                          <CalendarToday sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            No upcoming deadlines
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Tasks with due dates will appear here
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  }
+                  
+                  return upcomingTasks.map((task, index) => (
                   <Grid item xs={12} md={4} key={index}>
                     <Box 
                       sx={{ 
@@ -256,8 +352,11 @@ const Dashboard = () => {
                         borderColor: 'divider', 
                         borderRadius: 2,
                         borderLeft: '4px solid',
-                        borderLeftColor: task.priority === 'high' ? 'error.main' : 
-                                       task.priority === 'medium' ? 'warning.main' : 'success.main'
+                        borderLeftColor: task.isOverdue ? 'error.main' :
+                                       task.priority === 'critical' ? 'error.main' :
+                                       task.priority === 'high' ? 'error.main' : 
+                                       task.priority === 'medium' ? 'warning.main' : 'success.main',
+                        backgroundColor: task.isOverdue ? 'error.50' : 'background.paper'
                       }}
                     >
                       <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -266,24 +365,28 @@ const Dashboard = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         {task.project}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
                         <Chip 
                           label={task.deadline} 
                           size="small" 
-                          color={task.priority === 'high' ? 'error' : 
-                                task.priority === 'medium' ? 'warning' : 'success'}
-                          variant="outlined"
+                          color={task.isOverdue ? 'error' :
+                                task.daysDiff === 0 ? 'warning' :
+                                task.daysDiff === 1 ? 'warning' : 'default'}
+                          variant={task.isOverdue ? 'filled' : 'outlined'}
+                          sx={{ fontWeight: task.isOverdue ? 600 : 500 }}
                         />
                         <Chip 
                           label={task.priority} 
                           size="small" 
-                          color={task.priority === 'high' ? 'error' : 
+                          color={task.priority === 'critical' ? 'error' :
+                                task.priority === 'high' ? 'error' : 
                                 task.priority === 'medium' ? 'warning' : 'success'}
                         />
                       </Box>
                     </Box>
                   </Grid>
-                ))}
+                  ));
+                })()}
               </Grid>
             </CardContent>
           </Card>
