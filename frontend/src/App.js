@@ -148,6 +148,7 @@ function App() {
             <Route path="chat" element={<ChatPage />} />
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/github/callback" element={<Integrations />} />
+            <Route path="integrations/slack/callback" element={<Integrations />} />
           </Route>
         </Routes>
       </Router>

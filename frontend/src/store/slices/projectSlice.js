@@ -11,7 +11,7 @@ const initialState = {
 export const fetchProjects = createAsyncThunk(
   'projects/fetchProjects',
   async () => {
-    const response = await api.get('/projects/');
+    const response = await api.get('/api/projects/');
     return response.data;
   }
 );
@@ -19,7 +19,7 @@ export const fetchProjects = createAsyncThunk(
 export const fetchProject = createAsyncThunk(
   'projects/fetchProject',
   async (projectId) => {
-    const response = await api.get(`/projects/${projectId}/`);
+    const response = await api.get(`/api/projects/${projectId}/`);
     return response.data;
   }
 );
@@ -27,7 +27,7 @@ export const fetchProject = createAsyncThunk(
 export const createProject = createAsyncThunk(
   'projects/createProject',
   async (projectData) => {
-    const response = await api.post('/projects/', projectData);
+    const response = await api.post('/api/projects/', projectData);
     return response.data;
   }
 );
@@ -35,7 +35,7 @@ export const createProject = createAsyncThunk(
 export const updateProject = createAsyncThunk(
   'projects/updateProject',
   async ({ id, ...projectData }) => {
-    const response = await api.put(`/projects/${id}/`, projectData);
+    const response = await api.put(`/api/projects/${id}/`, projectData);
     return response.data;
   }
 );
@@ -43,7 +43,7 @@ export const updateProject = createAsyncThunk(
 export const deleteProject = createAsyncThunk(
   'projects/deleteProject',
   async (projectId) => {
-    await api.delete(`/projects/${projectId}/`);
+    await api.delete(`/api/projects/${projectId}/`);
     return projectId;
   }
 );
