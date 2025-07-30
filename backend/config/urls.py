@@ -16,10 +16,14 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # API routes
     path('api/auth/', include('users.urls')),
     path('api/', include('projects.urls')),
     path('api/', include('tasks.urls')),
     path('api/collaboration/', include('collaboration.urls')),
     path('api/integrations/', include('integrations.urls')),
+    # Direct routes for frontend compatibility
+    path('auth/', include('users.urls')),
+    path('collaboration/', include('collaboration.urls')),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

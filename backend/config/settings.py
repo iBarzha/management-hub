@@ -97,6 +97,8 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     config('FRONTEND_URL', default='http://localhost:3000'),
 ]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=False, cast=bool)
 
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'

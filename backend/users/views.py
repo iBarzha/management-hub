@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth import get_user_model
 from .serializers import UserSerializer, RegisterSerializer
 
@@ -23,6 +23,8 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
+    permission_classes = (AllowAny,)
+    
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
@@ -30,3 +32,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             user_data = UserSerializer(user).data
             response.data['user'] = user_data
         return response
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    permission_classes = (AllowAny,)
