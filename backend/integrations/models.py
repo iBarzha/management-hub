@@ -218,3 +218,131 @@ class SlackMessage(models.Model):
 
     def __str__(self):
         return f"Message to #{self.channel.channel_name}: {self.text[:50]}"
+
+
+class DiscordIntegration(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='discord_integration')
+    guild_id = models.CharField(max_length=100)
+    guild_name = models.CharField(max_length=200)
+    bot_token = models.TextField()
+    application_id = models.CharField(max_length=100)
+    permissions = models.BigIntegerField(default=0)
+    webhook_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'discord_integrations'
+        unique_together = ['user', 'guild_id']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.guild_name}"
+
+
+class DiscordChannel(models.Model):
+    CHANNEL_TYPE_CHOICES = [
+        ('text', 'Text Channel'),
+        ('voice', 'Voice Channel'),
+        ('category', 'Category'),
+        ('news', 'News Channel'),
+        ('stage', 'Stage Channel'),
+        ('forum', 'Forum Channel'),
+    ]
+
+    integration = models.ForeignKey(DiscordIntegration, on_delete=models.CASCADE, related_name='channels')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='discord_channels', null=True, blank=True)
+    channel_id = models.CharField(max_length=100, unique=True)
+    channel_name = models.CharField(max_length=200)
+    channel_type = models.CharField(max_length=20, choices=CHANNEL_TYPE_CHOICES, default='text')
+    parent_id = models.CharField(max_length=100, blank=True, null=True)
+    position = models.IntegerField(default=0)
+    nsfw = models.BooleanField(default=False)
+    notifications_enabled = models.BooleanField(default=True)
+    notification_types = models.JSONField(default=list)  # ['task_created', 'task_updated', 'deadline_reminder', etc.]
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'discord_channels'
+        unique_together = ['integration', 'channel_id']
+
+    def __str__(self):
+        return f"#{self.channel_name}"
+
+
+class DiscordMessage(models.Model):
+    MESSAGE_TYPE_CHOICES = [
+        ('notification', 'Notification'),
+        ('command_response', 'Command Response'),
+        ('webhook', 'Webhook'),
+        ('embed', 'Rich Embed'),
+    ]
+
+    channel = models.ForeignKey(DiscordChannel, on_delete=models.CASCADE, related_name='messages')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='notification')
+    discord_message_id = models.CharField(max_length=100, blank=True, null=True)
+    content = models.TextField(blank=True)
+    embeds = models.JSONField(default=list)
+    components = models.JSONField(default=list)  # Buttons, select menus, etc.
+    attachments = models.JSONField(default=list)
+    user_id = models.CharField(max_length=100, blank=True, null=True)
+    username = models.CharField(max_length=200, blank=True, null=True)
+    sent_successfully = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'discord_messages'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Message to #{self.channel.channel_name}: {self.content[:50] if self.content else 'Embed'}"
+
+
+class DiscordCommand(models.Model):
+    COMMAND_TYPE_CHOICES = [
+        ('slash', 'Slash Command'),
+        ('prefix', 'Prefix Command'),
+        ('context', 'Context Menu'),
+    ]
+
+    integration = models.ForeignKey(DiscordIntegration, on_delete=models.CASCADE, related_name='commands')
+    command_name = models.CharField(max_length=100)
+    command_type = models.CharField(max_length=20, choices=COMMAND_TYPE_CHOICES, default='slash')
+    description = models.TextField()
+    enabled = models.BooleanField(default=True)
+    permissions_required = models.JSONField(default=list)  # ['manage_tasks', 'view_projects', etc.]
+    usage_count = models.IntegerField(default=0)
+    last_used = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'discord_commands'
+        unique_together = ['integration', 'command_name']
+
+    def __str__(self):
+        return f"/{self.command_name}"
+
+
+class DiscordRole(models.Model):
+    integration = models.ForeignKey(DiscordIntegration, on_delete=models.CASCADE, related_name='roles')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='discord_roles', null=True, blank=True)
+    role_id = models.CharField(max_length=100, unique=True)
+    role_name = models.CharField(max_length=200)
+    color = models.CharField(max_length=7, default='#000000')  # Hex color
+    permissions = models.BigIntegerField(default=0)
+    position = models.IntegerField(default=0)
+    mentionable = models.BooleanField(default=False)
+    hoisted = models.BooleanField(default=False)
+    managed = models.BooleanField(default=False)
+    sync_with_project_role = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'discord_roles'
+        unique_together = ['integration', 'role_id']
+
+    def __str__(self):
+        return f"@{self.role_name}"
