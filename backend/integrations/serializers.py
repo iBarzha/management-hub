@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit, GitHubWebhook,
-    SlackIntegration, SlackChannel, SlackMessage
+    SlackIntegration, SlackChannel, SlackMessage,
+    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole
 )
 
 
@@ -93,3 +94,57 @@ class SlackMessageSerializer(serializers.ModelSerializer):
             'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+
+class DiscordIntegrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscordIntegration
+        fields = [
+            'id', 'guild_id', 'guild_name', 'application_id', 'permissions',
+            'webhook_url', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DiscordChannelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscordChannel
+        fields = [
+            'id', 'channel_id', 'channel_name', 'channel_type', 'parent_id',
+            'position', 'nsfw', 'notifications_enabled', 'notification_types',
+            'project', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DiscordMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscordMessage
+        fields = [
+            'id', 'message_type', 'discord_message_id', 'content', 'embeds',
+            'components', 'attachments', 'user_id', 'username', 
+            'sent_successfully', 'error_message', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class DiscordCommandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscordCommand
+        fields = [
+            'id', 'command_name', 'command_type', 'description', 'enabled',
+            'permissions_required', 'usage_count', 'last_used',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'usage_count', 'last_used', 'created_at', 'updated_at']
+
+
+class DiscordRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscordRole
+        fields = [
+            'id', 'role_id', 'role_name', 'color', 'permissions', 'position',
+            'mentionable', 'hoisted', 'managed', 'sync_with_project_role',
+            'project', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']

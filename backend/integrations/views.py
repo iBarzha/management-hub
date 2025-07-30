@@ -1,5 +1,6 @@
 import os
 import requests
+import asyncio
 from datetime import datetime
 from django.conf import settings
 from django.shortcuts import redirect
@@ -11,13 +12,17 @@ from rest_framework.response import Response
 from github import Github, GithubException
 from .models import (
     GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit,
-    SlackIntegration, SlackChannel, SlackMessage
+    SlackIntegration, SlackChannel, SlackMessage,
+    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole
 )
 from .serializers import (
     GitHubIntegrationSerializer, GitHubRepositorySerializer,
     GitHubIssueSerializer, GitHubCommitSerializer,
-    SlackIntegrationSerializer, SlackChannelSerializer, SlackMessageSerializer
+    SlackIntegrationSerializer, SlackChannelSerializer, SlackMessageSerializer,
+    DiscordIntegrationSerializer, DiscordChannelSerializer, DiscordMessageSerializer,
+    DiscordCommandSerializer, DiscordRoleSerializer
 )
+from .discord_bot import bot_manager
 
 User = get_user_model()
 
@@ -901,4 +906,700 @@ def _handle_project_status_command(integration, text, channel_id):
         return Response({
             'response_type': 'ephemeral',
             'text': f'Error retrieving project status: {str(e)}'
+        })
+
+
+class DiscordIntegrationViewSet(viewsets.ModelViewSet):
+    serializer_class = DiscordIntegrationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiscordIntegration.objects.filter(user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='auth-url')
+    def get_auth_url(self, request):
+        """Get Discord OAuth authorization URL"""
+        client_id = os.getenv('DISCORD_CLIENT_ID')
+        redirect_uri = os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:3000/integrations/discord/callback')
+        scope = 'bot applications.commands guilds'
+        permissions = '8'  # Administrator permissions (adjust as needed)
+        
+        auth_url = (
+            f"https://discord.com/api/oauth2/authorize"
+            f"?client_id={client_id}"
+            f"&permissions={permissions}"
+            f"&scope={scope}"
+            f"&redirect_uri={redirect_uri}"
+            f"&response_type=code"
+            f"&state={request.user.id}"
+        )
+        
+        return Response({'auth_url': auth_url})
+
+    @action(detail=False, methods=['post'], url_path='connect')
+    def connect_discord(self, request):
+        """Handle Discord OAuth callback and create integration"""
+        code = request.data.get('code')
+        state = request.data.get('state')
+        guild_id = request.data.get('guild_id')
+        
+        if not code:
+            return Response(
+                {'error': 'Authorization code is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if str(state) != str(request.user.id):
+            return Response(
+                {'error': 'Invalid state parameter'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not guild_id:
+            return Response(
+                {'error': 'Guild ID is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Exchange code for access token
+            token_data = self._exchange_code_for_token(code)
+            
+            # Get guild information
+            guild_info = self._get_guild_info(guild_id, token_data['access_token'])
+            
+            # Create or update integration
+            integration, created = DiscordIntegration.objects.update_or_create(
+                user=request.user,
+                guild_id=guild_id,
+                defaults={
+                    'guild_name': guild_info['name'],
+                    'bot_token': os.getenv('DISCORD_BOT_TOKEN'),
+                    'application_id': os.getenv('DISCORD_CLIENT_ID'),
+                    'permissions': int(token_data.get('permissions', 8)),
+                }
+            )
+            
+            # Start Discord bot for this integration
+            asyncio.create_task(bot_manager.start_bot(integration.id))
+            
+            serializer = self.get_serializer(integration)
+            return Response({
+                'integration': serializer.data,
+                'created': created
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to connect Discord: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['delete'], url_path='disconnect')
+    def disconnect_discord(self, request, pk=None):
+        """Disconnect Discord integration"""
+        try:
+            integration = self.get_object()
+            
+            # Stop Discord bot
+            asyncio.create_task(bot_manager.stop_bot(integration.id))
+            
+            integration.delete()
+            
+            return Response({'message': 'Discord integration disconnected successfully'})
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to disconnect Discord: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'], url_path='send-notification')
+    def send_notification(self, request, pk=None):
+        """Send a notification to Discord channel"""
+        try:
+            integration = self.get_object()
+            channel_id = request.data.get('channel_id')
+            title = request.data.get('title', 'Notification')
+            description = request.data.get('description', '')
+            color = request.data.get('color', 0x3498db)
+            fields = request.data.get('fields', [])
+            
+            if not channel_id:
+                return Response(
+                    {'error': 'Channel ID is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Prepare embed data
+            embed_data = {
+                'title': title,
+                'description': description,
+                'color': color,
+                'timestamp': datetime.utcnow().isoformat(),
+                'fields': fields
+            }
+            
+            # Send notification via bot manager
+            success = asyncio.run(bot_manager.send_notification(channel_id, embed_data))
+            success = False  # Temporarily disabled
+            
+            if success:
+                # Save message record
+                channel_obj = DiscordChannel.objects.get(
+                    integration=integration,
+                    channel_id=channel_id
+                )
+                
+                message = DiscordMessage.objects.create(
+                    channel=channel_obj,
+                    message_type='notification',
+                    embeds=[embed_data],
+                    sent_successfully=True
+                )
+                
+                serializer = DiscordMessageSerializer(message)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {'error': 'Failed to send Discord notification'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+        except DiscordChannel.DoesNotExist:
+            return Response(
+                {'error': 'Discord channel not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to send notification: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def _exchange_code_for_token(self, code):
+        """Exchange authorization code for access token"""
+        client_id = os.getenv('DISCORD_CLIENT_ID')
+        client_secret = os.getenv('DISCORD_CLIENT_SECRET')
+        redirect_uri = os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:3000/integrations/discord/callback')
+        
+        token_url = 'https://discord.com/api/oauth2/token'
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri,
+        }
+        
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        response = requests.post(token_url, data=data, headers=headers)
+        response.raise_for_status()
+        
+        return response.json()
+
+    def _get_guild_info(self, guild_id, access_token):
+        """Get Discord guild information"""
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(f'https://discord.com/api/guilds/{guild_id}', headers=headers)
+        response.raise_for_status()
+        
+        return response.json()
+
+
+class DiscordChannelViewSet(viewsets.ModelViewSet):
+    serializer_class = DiscordChannelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiscordChannel.objects.filter(
+            integration__user=self.request.user
+        )
+
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync_channels(self, request):
+        """Sync channels from Discord guild"""
+        try:
+            integration_id = request.data.get('integration_id')
+            if not integration_id:
+                return Response(
+                    {'error': 'Integration ID is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            integration = DiscordIntegration.objects.get(
+                id=integration_id, 
+                user=request.user
+            )
+            
+            # Channels are synced automatically when bot starts
+            # This endpoint returns current synced channels
+            channels = DiscordChannel.objects.filter(integration=integration)
+            serializer = self.get_serializer(channels, many=True)
+            
+            return Response({
+                'channels': serializer.data,
+                'count': channels.count()
+            })
+            
+        except DiscordIntegration.DoesNotExist:
+            return Response(
+                {'error': 'Discord integration not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to sync channels: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['post'], url_path='connect-project')
+    def connect_to_project(self, request, pk=None):
+        """Connect Discord channel to a project"""
+        try:
+            channel = self.get_object()
+            project_id = request.data.get('project_id')
+            
+            if not project_id:
+                return Response(
+                    {'error': 'Project ID is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            from projects.models import Project
+            project = Project.objects.get(id=project_id)
+            
+            channel.project = project
+            channel.save()
+            
+            serializer = self.get_serializer(channel)
+            return Response(serializer.data)
+            
+        except Project.DoesNotExist:
+            return Response(
+                {'error': 'Project not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to connect channel: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class DiscordMessageViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DiscordMessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiscordMessage.objects.filter(
+            channel__integration__user=self.request.user
+        )
+
+
+class DiscordCommandViewSet(viewsets.ModelViewSet):
+    serializer_class = DiscordCommandSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiscordCommand.objects.filter(
+            integration__user=self.request.user
+        )
+
+    @action(detail=False, methods=['get'], url_path='usage-stats')
+    def usage_stats(self, request):
+        """Get command usage statistics"""
+        try:
+            integration_id = request.query_params.get('integration_id')
+            if integration_id:
+                commands = self.get_queryset().filter(integration_id=integration_id)
+            else:
+                commands = self.get_queryset()
+            
+            stats = []
+            for command in commands:
+                stats.append({
+                    'command_name': command.command_name,
+                    'usage_count': command.usage_count,
+                    'last_used': command.last_used,
+                    'enabled': command.enabled
+                })
+            
+            return Response({'stats': stats})
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to get usage stats: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class DiscordRoleViewSet(viewsets.ModelViewSet):
+    serializer_class = DiscordRoleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return DiscordRole.objects.filter(
+            integration__user=self.request.user
+        )
+
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync_roles(self, request):
+        """Sync roles from Discord guild"""
+        try:
+            integration_id = request.data.get('integration_id')
+            if not integration_id:
+                return Response(
+                    {'error': 'Integration ID is required'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            integration = DiscordIntegration.objects.get(
+                id=integration_id, 
+                user=request.user
+            )
+            
+            # Roles are synced automatically when bot starts
+            # This endpoint returns current synced roles
+            roles = DiscordRole.objects.filter(integration=integration)
+            serializer = self.get_serializer(roles, many=True)
+            
+            return Response({
+                'roles': serializer.data,
+                'count': roles.count()
+            })
+            
+        except DiscordIntegration.DoesNotExist:
+            return Response(
+                {'error': 'Discord integration not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to sync roles: {str(e)}'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+@api_view(['POST'])
+@permission_classes([])  # Discord webhooks don't use our auth
+def discord_webhook(request):
+    """Handle Discord webhook events"""
+    try:
+        # Verify the request comes from Discord (implement signature verification)
+        # For now, we'll skip verification in development
+        
+        event_type = request.headers.get('X-Discord-Event-Type')
+        data = request.data
+        
+        if event_type == 'MESSAGE_CREATE':
+            # Handle new messages (could be used for chat integration)
+            pass
+        elif event_type == 'GUILD_MEMBER_ADD':
+            # Handle new member joining
+            pass
+        elif event_type == 'INTERACTION_CREATE':
+            # Handle slash command interactions
+            return _handle_discord_interaction(data)
+        
+        return Response({'status': 'success'})
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Webhook processing failed: {str(e)}'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+def _handle_discord_interaction(interaction_data):
+    """Handle Discord slash command interactions"""
+    try:
+        interaction_type = interaction_data.get('type')
+        
+        if interaction_type == 2:  # APPLICATION_COMMAND
+            command_name = interaction_data['data']['name']
+            options = interaction_data['data'].get('options', [])
+            guild_id = interaction_data.get('guild_id')
+            channel_id = interaction_data.get('channel_id')
+            user_id = interaction_data['member']['user']['id']
+            
+            # Find the integration
+            try:
+                integration = DiscordIntegration.objects.get(guild_id=guild_id)
+            except DiscordIntegration.DoesNotExist:
+                return Response({
+                    'type': 4,  # CHANNEL_MESSAGE_WITH_SOURCE
+                    'data': {
+                        'content': 'Discord integration not found. Please reconnect the bot.',
+                        'flags': 64  # EPHEMERAL
+                    }
+                })
+            
+            # Handle different commands
+            if command_name == 'tasks':
+                return _handle_discord_tasks_interaction(integration, options, channel_id)
+            elif command_name == 'create-task':
+                return _handle_discord_create_task_interaction(integration, options, user_id, channel_id)
+            elif command_name == 'project-status':
+                return _handle_discord_project_status_interaction(integration, options)
+            else:
+                return Response({
+                    'type': 4,
+                    'data': {
+                        'content': f'Unknown command: {command_name}',
+                        'flags': 64
+                    }
+                })
+        
+        return Response({'type': 1})  # PONG
+        
+    except Exception as e:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': f'Error processing interaction: {str(e)}',
+                'flags': 64
+            }
+        })
+
+
+def _handle_discord_tasks_interaction(integration, options, channel_id):
+    """Handle Discord /tasks slash command"""
+    from tasks.models import Task
+    
+    status_filter = None
+    for option in options:
+        if option['name'] == 'status':
+            status_filter = option['value']
+    
+    try:
+        # Get channel and project
+        channel = DiscordChannel.objects.get(
+            integration=integration,
+            channel_id=channel_id
+        )
+        
+        if not channel.project:
+            return Response({
+                'type': 4,
+                'data': {
+                    'content': '❌ This channel is not associated with a project.',
+                    'flags': 64
+                }
+            })
+        
+        # Get tasks
+        tasks = Task.objects.filter(project=channel.project)
+        if status_filter:
+            tasks = tasks.filter(status=status_filter)
+        
+        tasks = tasks[:10]  # Limit to 10
+        
+        if not tasks.exists():
+            return Response({
+                'type': 4,
+                'data': {
+                    'content': f'📝 No tasks found' + (f' with status: {status_filter}' if status_filter else ''),
+                    'flags': 64
+                }
+            })
+        
+        # Build embed
+        embed_fields = []
+        for task in tasks:
+            priority_emoji = {'low': '🟢', 'medium': '🟡', 'high': '🔴', 'urgent': '🚨'}.get(task.priority, '⚪')
+            embed_fields.append({
+                'name': f"{priority_emoji} {task.title}",
+                'value': f"**Status:** {task.status}\n**Assignee:** {task.assignee.email if task.assignee else 'Unassigned'}",
+                'inline': False
+            })
+        
+        embed = {
+            'title': f'📋 Tasks ({status_filter or "all"})',
+            'color': 0x3498db,
+            'fields': embed_fields,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        return Response({
+            'type': 4,
+            'data': {
+                'embeds': [embed]
+            }
+        })
+        
+    except DiscordChannel.DoesNotExist:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': '❌ Channel not found in database.',
+                'flags': 64
+            }
+        })
+
+
+def _handle_discord_create_task_interaction(integration, options, user_id, channel_id):
+    """Handle Discord /create-task slash command"""
+    title = None
+    description = None
+    
+    for option in options:
+        if option['name'] == 'title':
+            title = option['value']
+        elif option['name'] == 'description':
+            description = option['value']
+    
+    if not title:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': '❌ Task title is required.',
+                'flags': 64
+            }
+        })
+    
+    try:
+        from tasks.models import Task
+        
+        # Get channel and project
+        channel = DiscordChannel.objects.get(
+            integration=integration,
+            channel_id=channel_id
+        )
+        
+        if not channel.project:
+            return Response({
+                'type': 4,
+                'data': {
+                    'content': '❌ This channel is not associated with a project.',
+                    'flags': 64
+                }
+            })
+        
+        # Create task
+        task = Task.objects.create(
+            title=title,
+            description=description or '',
+            project=channel.project,
+            status='todo',
+            priority='medium',
+            created_by=integration.user
+        )
+        
+        embed = {
+            'title': '✅ Task Created',
+            'description': f"**{task.title}**",
+            'color': 0x28a745,
+            'fields': [
+                {'name': 'ID', 'value': str(task.id), 'inline': True},
+                {'name': 'Status', 'value': task.status, 'inline': True},
+                {'name': 'Priority', 'value': task.priority, 'inline': True}
+            ],
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        return Response({
+            'type': 4,
+            'data': {
+                'embeds': [embed]
+            }
+        })
+        
+    except DiscordChannel.DoesNotExist:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': '❌ Channel not found in database.',
+                'flags': 64
+            }
+        })
+    except Exception as e:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': f'❌ Error creating task: {str(e)}',
+                'flags': 64
+            }
+        })
+
+
+def _handle_discord_project_status_interaction(integration, options):
+    """Handle Discord /project-status slash command"""
+    project_name = None
+    
+    for option in options:
+        if option['name'] == 'project':
+            project_name = option['value']
+    
+    if not project_name:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': '❌ Project name is required.',
+                'flags': 64
+            }
+        })
+    
+    try:
+        from projects.models import Project
+        from tasks.models import Task
+        
+        # Find project
+        project = Project.objects.get(
+            name__icontains=project_name,
+            team__members__user=integration.user
+        )
+        
+        # Get statistics
+        total_tasks = Task.objects.filter(project=project).count()
+        completed_tasks = Task.objects.filter(project=project, status='done').count()
+        in_progress_tasks = Task.objects.filter(project=project, status='in_progress').count()
+        todo_tasks = Task.objects.filter(project=project, status='todo').count()
+        
+        progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        
+        # Determine color based on progress
+        if progress > 80:
+            color = 0x28a745  # Green
+        elif progress > 40:
+            color = 0xffc107  # Yellow
+        else:
+            color = 0xdc3545  # Red
+        
+        embed = {
+            'title': f'📊 Project Status: {project.name}',
+            'description': project.description or 'No description available',
+            'color': color,
+            'fields': [
+                {'name': '📈 Progress', 'value': f'{progress:.1f}%', 'inline': True},
+                {'name': '✅ Completed', 'value': str(completed_tasks), 'inline': True},
+                {'name': '🔄 In Progress', 'value': str(in_progress_tasks), 'inline': True},
+                {'name': '📝 To Do', 'value': str(todo_tasks), 'inline': True},
+                {'name': '📊 Total Tasks', 'value': str(total_tasks), 'inline': True},
+                {'name': '🏷️ Status', 'value': project.status.title(), 'inline': True}
+            ],
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        return Response({
+            'type': 4,
+            'data': {
+                'embeds': [embed]
+            }
+        })
+        
+    except Project.DoesNotExist:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': f'❌ Project "{project_name}" not found.',
+                'flags': 64
+            }
+        })
+    except Exception as e:
+        return Response({
+            'type': 4,
+            'data': {
+                'content': f'❌ Error retrieving project status: {str(e)}',
+                'flags': 64
+            }
         })
