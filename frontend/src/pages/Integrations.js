@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import GitHubIntegration from '../components/GitHubIntegration';
 import SlackIntegration from '../components/SlackIntegration';
+import DiscordIntegration from '../components/DiscordIntegration';
 import api from '../services/api';
 
 const Integrations = () => {
@@ -35,6 +36,11 @@ const Integrations = () => {
             });
           } else if (location.pathname === '/integrations/slack/callback') {
             await api.post('/api/integrations/slack/connect/', {
+              code: code,
+              state: state
+            });
+          } else if (location.pathname === '/integrations/discord/callback') {
+            await api.post('/api/integrations/discord/connect/', {
               code: code,
               state: state
             });
@@ -74,10 +80,14 @@ const Integrations = () => {
           <SlackIntegration />
         </Box>
 
+        <Box mt={4}>
+          <DiscordIntegration />
+        </Box>
+
         {/* Future integrations can be added here */}
         <Box mt={4}>
           <Alert severity="info">
-            More integrations coming soon: Discord, Jira, and more!
+            More integrations coming soon: Jira, Trello, Microsoft Teams, and more!
           </Alert>
         </Box>
       </Box>
