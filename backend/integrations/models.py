@@ -151,3 +151,70 @@ class GitHubWebhook(models.Model):
 
     def __str__(self):
         return f"Webhook for {self.repository.full_name}"
+
+
+class SlackIntegration(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='slack_integration')
+    team_id = models.CharField(max_length=100)
+    team_name = models.CharField(max_length=200)
+    access_token = models.TextField()
+    bot_user_id = models.CharField(max_length=100, blank=True, null=True)
+    bot_access_token = models.TextField(blank=True, null=True)
+    webhook_url = models.URLField(blank=True, null=True)
+    scope = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'slack_integrations'
+        unique_together = ['user', 'team_id']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.team_name}"
+
+
+class SlackChannel(models.Model):
+    integration = models.ForeignKey(SlackIntegration, on_delete=models.CASCADE, related_name='channels')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='slack_channels', null=True, blank=True)
+    channel_id = models.CharField(max_length=100)
+    channel_name = models.CharField(max_length=200)
+    is_private = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
+    notifications_enabled = models.BooleanField(default=True)
+    notification_types = models.JSONField(default=list)  # ['task_created', 'task_updated', 'deadline_reminder', etc.]
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'slack_channels'
+        unique_together = ['integration', 'channel_id']
+
+    def __str__(self):
+        return f"#{self.channel_name}"
+
+
+class SlackMessage(models.Model):
+    MESSAGE_TYPE_CHOICES = [
+        ('notification', 'Notification'),
+        ('command_response', 'Command Response'),
+        ('webhook', 'Webhook'),
+    ]
+
+    channel = models.ForeignKey(SlackChannel, on_delete=models.CASCADE, related_name='messages')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default='notification')
+    slack_timestamp = models.CharField(max_length=20, blank=True, null=True)
+    text = models.TextField()
+    attachments = models.JSONField(default=list)
+    blocks = models.JSONField(default=list)
+    user_id = models.CharField(max_length=100, blank=True, null=True)
+    username = models.CharField(max_length=200, blank=True, null=True)
+    sent_successfully = models.BooleanField(default=False)
+    error_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'slack_messages'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Message to #{self.channel.channel_name}: {self.text[:50]}"

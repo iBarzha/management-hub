@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit, GitHubWebhook
+from .models import (
+    GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit, GitHubWebhook,
+    SlackIntegration, SlackChannel, SlackMessage
+)
 
 
 class GitHubIntegrationSerializer(serializers.ModelSerializer):
@@ -58,3 +61,35 @@ class GitHubWebhookSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class SlackIntegrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SlackIntegration
+        fields = [
+            'id', 'team_id', 'team_name', 'bot_user_id', 'webhook_url', 'scope',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class SlackChannelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SlackChannel
+        fields = [
+            'id', 'channel_id', 'channel_name', 'is_private', 'is_archived',
+            'notifications_enabled', 'notification_types', 'project',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class SlackMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SlackMessage
+        fields = [
+            'id', 'message_type', 'slack_timestamp', 'text', 'attachments',
+            'blocks', 'user_id', 'username', 'sent_successfully', 'error_message',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
