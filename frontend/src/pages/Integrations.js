@@ -7,30 +7,38 @@ import {
   Alert
 } from '@mui/material';
 import GitHubIntegration from '../components/GitHubIntegration';
+import SlackIntegration from '../components/SlackIntegration';
 import api from '../services/api';
 
 const Integrations = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Handle GitHub OAuth callback
-    const handleGitHubCallback = async () => {
+    // Handle OAuth callbacks
+    const handleOAuthCallback = async () => {
       const urlParams = new URLSearchParams(location.search);
       const code = urlParams.get('code');
       const state = urlParams.get('state');
       const error = urlParams.get('error');
 
       if (error) {
-        console.error('GitHub OAuth error:', error);
+        console.error('OAuth error:', error);
         return;
       }
 
       if (code && state) {
         try {
-          await api.post('/api/integrations/github/connect/', {
-            code: code,
-            state: state
-          });
+          if (location.pathname === '/integrations/github/callback') {
+            await api.post('/api/integrations/github/connect/', {
+              code: code,
+              state: state
+            });
+          } else if (location.pathname === '/integrations/slack/callback') {
+            await api.post('/api/integrations/slack/connect/', {
+              code: code,
+              state: state
+            });
+          }
           
           // Redirect to clean URL
           window.history.replaceState({}, document.title, '/integrations');
@@ -38,13 +46,13 @@ const Integrations = () => {
           // Refresh the page to show the connected integration
           window.location.reload();
         } catch (error) {
-          console.error('Error connecting GitHub:', error);
+          console.error('Error connecting integration:', error);
         }
       }
     };
 
-    if (location.pathname === '/integrations/github/callback') {
-      handleGitHubCallback();
+    if (location.pathname.includes('/callback')) {
+      handleOAuthCallback();
     }
   }, [location]);
 
@@ -62,10 +70,14 @@ const Integrations = () => {
           <GitHubIntegration />
         </Box>
 
+        <Box mt={4}>
+          <SlackIntegration />
+        </Box>
+
         {/* Future integrations can be added here */}
         <Box mt={4}>
           <Alert severity="info">
-            More integrations coming soon: Slack, Discord, Jira, and more!
+            More integrations coming soon: Discord, Jira, and more!
           </Alert>
         </Box>
       </Box>
