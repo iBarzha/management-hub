@@ -30,7 +30,7 @@ import {
   GitHub as GitHubIcon,
   Sync as SyncIcon,
   Link as LinkIcon,
-  Unlink as UnlinkIcon,
+  LinkOff as UnlinkIcon,
   OpenInNew as OpenInNewIcon,
   Code as CodeIcon,
   BugReport as BugReportIcon

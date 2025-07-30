@@ -7,7 +7,7 @@ import {
 import {
   Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, 
   AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon,
-  Integration as IntegrationIcon
+  Extension as IntegrationIcon
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
