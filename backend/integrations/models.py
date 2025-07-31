@@ -346,3 +346,141 @@ class DiscordRole(models.Model):
 
     def __str__(self):
         return f"@{self.role_name}"
+
+
+class GoogleCalendarIntegration(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='google_calendar_integration')
+    access_token = models.TextField()
+    refresh_token = models.TextField(blank=True, null=True)
+    token_expires_at = models.DateTimeField(null=True, blank=True)
+    calendar_id = models.CharField(max_length=500, default='primary')
+    google_user_email = models.EmailField(blank=True, null=True)
+    scope = models.TextField(default='https://www.googleapis.com/auth/calendar')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'google_calendar_integrations'
+
+    def __str__(self):
+        return f"{self.user.email} - Google Calendar"
+
+
+class CalendarEvent(models.Model):
+    EVENT_STATUS_CHOICES = [
+        ('confirmed', 'Confirmed'),
+        ('tentative', 'Tentative'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    TRANSPARENCY_CHOICES = [
+        ('opaque', 'Busy'),
+        ('transparent', 'Free'),
+    ]
+
+    integration = models.ForeignKey(GoogleCalendarIntegration, on_delete=models.CASCADE, related_name='events')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='calendar_events', null=True, blank=True)
+    google_event_id = models.CharField(max_length=1024, unique=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=500, blank=True, null=True)
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+    timezone = models.CharField(max_length=100, default='UTC')
+    all_day = models.BooleanField(default=False)
+    recurring = models.BooleanField(default=False)
+    recurrence_rule = models.TextField(blank=True, null=True)  # RRULE
+    status = models.CharField(max_length=20, choices=EVENT_STATUS_CHOICES, default='confirmed')
+    transparency = models.CharField(max_length=20, choices=TRANSPARENCY_CHOICES, default='opaque')
+    attendees = models.JSONField(default=list)  # List of attendee objects
+    creator_email = models.EmailField(blank=True, null=True)
+    organizer_email = models.EmailField(blank=True, null=True)
+    hangout_link = models.URLField(blank=True, null=True)
+    meeting_url = models.URLField(blank=True, null=True)
+    visibility = models.CharField(max_length=20, default='default')  # default, public, private
+    reminders = models.JSONField(default=list)  # List of reminder objects
+    google_created_at = models.DateTimeField()
+    google_updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'calendar_events'
+        ordering = ['start_datetime']
+
+    def __str__(self):
+        return f"{self.title} - {self.start_datetime.strftime('%Y-%m-%d %H:%M')}"
+
+
+class MeetingSchedule(models.Model):
+    MEETING_TYPE_CHOICES = [
+        ('standup', 'Daily Standup'),
+        ('planning', 'Sprint Planning'),
+        ('review', 'Sprint Review'),
+        ('retrospective', 'Sprint Retrospective'),
+        ('general', 'General Meeting'),
+        ('one_on_one', 'One-on-One'),
+    ]
+
+    STATUS_CHOICES = [
+        ('scheduled', 'Scheduled'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='meetings')
+    calendar_event = models.OneToOneField(CalendarEvent, on_delete=models.CASCADE, related_name='meeting_schedule', null=True, blank=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True, null=True)
+    meeting_type = models.CharField(max_length=20, choices=MEETING_TYPE_CHOICES, default='general')
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+    timezone = models.CharField(max_length=100, default='UTC')
+    location = models.CharField(max_length=500, blank=True, null=True)
+    meeting_url = models.URLField(blank=True, null=True)
+    attendees = models.ManyToManyField(User, related_name='scheduled_meetings', blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_meetings')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    recurring = models.BooleanField(default=False)
+    recurrence_pattern = models.JSONField(default=dict)  # Custom recurrence data
+    agenda = models.TextField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    action_items = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'meeting_schedules'
+        ordering = ['start_datetime']
+
+    def __str__(self):
+        return f"{self.title} - {self.start_datetime.strftime('%Y-%m-%d %H:%M')}"
+
+
+class CalendarSync(models.Model):
+    SYNC_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    integration = models.ForeignKey(GoogleCalendarIntegration, on_delete=models.CASCADE, related_name='sync_records')
+    sync_type = models.CharField(max_length=50, default='full')  # full, incremental, events_only
+    status = models.CharField(max_length=20, choices=SYNC_STATUS_CHOICES, default='pending')
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    events_synced = models.IntegerField(default=0)
+    events_created = models.IntegerField(default=0)
+    events_updated = models.IntegerField(default=0)
+    events_deleted = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True, null=True)
+    sync_token = models.CharField(max_length=500, blank=True, null=True)  # For incremental sync
+    
+    class Meta:
+        db_table = 'calendar_sync_records'
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"Sync {self.id} - {self.status} ({self.started_at.strftime('%Y-%m-%d %H:%M')})"
