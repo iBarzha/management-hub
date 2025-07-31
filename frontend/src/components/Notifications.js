@@ -14,6 +14,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import webSocketService from '../services/websocket';
 import api from '../services/api';
+import emailService from '../services/emailService';
 
 const NotificationTypeIcons = {
   task_assigned: TaskIcon,
@@ -37,6 +38,9 @@ const Notifications = () => {
   useEffect(() => {
     if (!user || !token) return;
 
+    // Initialize EmailJS
+    emailService.init();
+
     // Load initial notifications
     loadNotifications();
     loadUnreadCount();
@@ -44,7 +48,7 @@ const Notifications = () => {
     // Connect to WebSocket for real-time notifications
     const ws = webSocketService.connectToNotifications(user.id, token);
     
-    const handleMessage = (data) => {
+    const handleMessage = async (data) => {
       if (data.type === 'notification') {
         // Add to notifications list
         setNotifications(prev => [data, ...prev]);
@@ -55,6 +59,18 @@ const Notifications = () => {
           position: "top-right",
           autoClose: 5000,
         });
+
+        // Send email notification if user has email notifications enabled
+        try {
+          const userPrefsResponse = await api.get('/users/preferences/');
+          const userPrefs = userPrefsResponse.data;
+          
+          if (emailService.isEmailNotificationEnabled(userPrefs, data.notification_type)) {
+            await emailService.sendNotificationEmail(data, user.email);
+          }
+        } catch (error) {
+          console.error('Error checking email notification preferences:', error);
+        }
       }
     };
 

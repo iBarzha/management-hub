@@ -85,6 +85,7 @@ const Layout = () => {
     { text: 'Tasks', icon: <Assignment />, path: '/tasks' },
     { text: 'Chat', icon: <ChatIcon />, path: '/chat' },
     { text: 'Integrations', icon: <IntegrationIcon />, path: '/integrations' },
+    { text: 'Settings', icon: <Settings />, path: '/settings' },
   ];
 
   const drawer = (
