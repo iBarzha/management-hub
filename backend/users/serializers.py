@@ -9,8 +9,53 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'avatar', 'bio', 'timezone',
-                  'is_online', 'last_seen', 'created_at']
+                  'notification_preferences', 'is_online', 'last_seen', 'created_at']
         read_only_fields = ['id', 'created_at', 'is_online', 'last_seen']
+
+
+class UserPreferencesSerializer(serializers.ModelSerializer):
+    email_notifications = serializers.JSONField(required=False)
+    
+    class Meta:
+        model = User
+        fields = ['notification_preferences']
+        
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        
+        # Provide default email notification settings if not set
+        default_email_settings = {
+            'enabled': True,
+            'task_assignments': True,
+            'task_updates': False,
+            'project_updates': True,
+            'deadline_reminders': True,
+            'mentions': True,
+            'comments': False,
+            'other': False
+        }
+        
+        if not data['notification_preferences']:
+            data['notification_preferences'] = {}
+            
+        if 'email_notifications' not in data['notification_preferences']:
+            data['notification_preferences']['email_notifications'] = default_email_settings
+            
+        # Add email_notifications to root level for easier access
+        data['email_notifications'] = data['notification_preferences'].get('email_notifications', default_email_settings)
+        
+        return data
+        
+    def update(self, instance, validated_data):
+        notification_prefs = validated_data.get('notification_preferences', {})
+        
+        # Merge with existing preferences
+        if not instance.notification_preferences:
+            instance.notification_preferences = {}
+            
+        instance.notification_preferences.update(notification_prefs)
+        instance.save()
+        return instance
 
 
 class RegisterSerializer(serializers.ModelSerializer):
