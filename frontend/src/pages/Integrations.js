@@ -9,6 +9,7 @@ import {
 import GitHubIntegration from '../components/GitHubIntegration';
 import SlackIntegration from '../components/SlackIntegration';
 import DiscordIntegration from '../components/DiscordIntegration';
+import GoogleCalendarIntegration from '../components/GoogleCalendarIntegration';
 import api from '../services/api';
 
 const Integrations = () => {
@@ -41,6 +42,11 @@ const Integrations = () => {
             });
           } else if (location.pathname === '/integrations/discord/callback') {
             await api.post('/api/integrations/discord/connect/', {
+              code: code,
+              state: state
+            });
+          } else if (location.pathname === '/integrations/google/callback') {
+            await api.post('/api/integrations/google-calendar/connect/', {
               code: code,
               state: state
             });
@@ -82,6 +88,10 @@ const Integrations = () => {
 
         <Box mt={4}>
           <DiscordIntegration />
+        </Box>
+
+        <Box mt={4}>
+          <GoogleCalendarIntegration />
         </Box>
 
         {/* Future integrations can be added here */}
