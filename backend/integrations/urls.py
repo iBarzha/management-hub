@@ -14,7 +14,11 @@ from .views import (
     DiscordMessageViewSet,
     DiscordCommandViewSet,
     DiscordRoleViewSet,
-    discord_webhook
+    discord_webhook,
+    GoogleCalendarIntegrationViewSet,
+    CalendarEventViewSet,
+    MeetingScheduleViewSet,
+    CalendarSyncViewSet
 )
 
 router = DefaultRouter()
@@ -30,6 +34,10 @@ router.register(r'discord-channels', DiscordChannelViewSet, basename='discord-ch
 router.register(r'discord-messages', DiscordMessageViewSet, basename='discord-message')
 router.register(r'discord-commands', DiscordCommandViewSet, basename='discord-command')
 router.register(r'discord-roles', DiscordRoleViewSet, basename='discord-role')
+router.register(r'google-calendar', GoogleCalendarIntegrationViewSet, basename='google-calendar-integration')
+router.register(r'calendar-events', CalendarEventViewSet, basename='calendar-event')
+router.register(r'meeting-schedules', MeetingScheduleViewSet, basename='meeting-schedule')
+router.register(r'calendar-sync', CalendarSyncViewSet, basename='calendar-sync')
 
 urlpatterns = [
     path('', include(router.urls)),

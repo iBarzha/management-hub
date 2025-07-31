@@ -13,16 +13,20 @@ from github import Github, GithubException
 from .models import (
     GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit,
     SlackIntegration, SlackChannel, SlackMessage,
-    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole
+    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole,
+    GoogleCalendarIntegration, CalendarEvent, MeetingSchedule, CalendarSync
 )
 from .serializers import (
     GitHubIntegrationSerializer, GitHubRepositorySerializer,
     GitHubIssueSerializer, GitHubCommitSerializer,
     SlackIntegrationSerializer, SlackChannelSerializer, SlackMessageSerializer,
     DiscordIntegrationSerializer, DiscordChannelSerializer, DiscordMessageSerializer,
-    DiscordCommandSerializer, DiscordRoleSerializer
+    DiscordCommandSerializer, DiscordRoleSerializer,
+    GoogleCalendarIntegrationSerializer, CalendarEventSerializer, 
+    MeetingScheduleSerializer, CalendarSyncSerializer
 )
 from .discord_bot import bot_manager
+from .google_calendar_service import GoogleCalendarService
 
 User = get_user_model()
 
@@ -1603,3 +1607,12 @@ def _handle_discord_project_status_interaction(integration, options):
                 'flags': 64
             }
         })
+
+
+# Import Google Calendar views
+from .google_calendar_views import (
+    GoogleCalendarIntegrationViewSet, 
+    CalendarEventViewSet, 
+    MeetingScheduleViewSet, 
+    CalendarSyncViewSet
+)

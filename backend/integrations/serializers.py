@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     GitHubIntegration, GitHubRepository, GitHubIssue, GitHubCommit, GitHubWebhook,
     SlackIntegration, SlackChannel, SlackMessage,
-    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole
+    DiscordIntegration, DiscordChannel, DiscordMessage, DiscordCommand, DiscordRole,
+    GoogleCalendarIntegration, CalendarEvent, MeetingSchedule, CalendarSync
 )
 
 
@@ -148,3 +149,63 @@ class DiscordRoleSerializer(serializers.ModelSerializer):
             'project', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class GoogleCalendarIntegrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GoogleCalendarIntegration
+        fields = [
+            'id', 'calendar_id', 'google_user_email', 'scope',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CalendarEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CalendarEvent
+        fields = [
+            'id', 'google_event_id', 'title', 'description', 'location',
+            'start_datetime', 'end_datetime', 'timezone', 'all_day', 'recurring',
+            'recurrence_rule', 'status', 'transparency', 'attendees',
+            'creator_email', 'organizer_email', 'hangout_link', 'meeting_url',
+            'visibility', 'reminders', 'google_created_at', 'google_updated_at',
+            'project', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'google_event_id', 'google_created_at', 'google_updated_at', 'created_at', 'updated_at']
+
+
+class MeetingScheduleSerializer(serializers.ModelSerializer):
+    attendees_list = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = MeetingSchedule
+        fields = [
+            'id', 'title', 'description', 'meeting_type', 'start_datetime',
+            'end_datetime', 'timezone', 'location', 'meeting_url', 'attendees',
+            'attendees_list', 'created_by', 'status', 'recurring', 'recurrence_pattern',
+            'agenda', 'notes', 'action_items', 'project', 'calendar_event',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'attendees_list']
+
+    def get_attendees_list(self, obj):
+        return [
+            {
+                'id': user.id,
+                'email': user.email,
+                'full_name': user.get_full_name(),
+            }
+            for user in obj.attendees.all()
+        ]
+
+
+class CalendarSyncSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CalendarSync
+        fields = [
+            'id', 'sync_type', 'status', 'started_at', 'completed_at',
+            'events_synced', 'events_created', 'events_updated', 'events_deleted',
+            'error_message', 'sync_token'
+        ]
+        read_only_fields = ['id', 'started_at', 'completed_at', 'events_synced', 'events_created', 'events_updated', 'events_deleted']
