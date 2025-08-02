@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/', include('tasks.urls')),
     path('api/collaboration/', include('collaboration.urls')),
     path('api/integrations/', include('integrations.urls')),
+    path('api/analytics/', include('analytics.urls')),
     # Direct routes for frontend compatibility
     path('auth/', include('users.urls')),
     path('collaboration/', include('collaboration.urls')),

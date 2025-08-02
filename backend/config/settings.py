@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'tasks.apps.TasksConfig',
     'collaboration.apps.CollaborationConfig',
     'integrations.apps.IntegrationsConfig',
+    'analytics.apps.AnalyticsConfig',
 ]
 
 MIDDLEWARE = [
