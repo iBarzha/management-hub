@@ -18,27 +18,22 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Autocomplete,
   Alert,
   CircularProgress,
-  Divider,
   Tab,
   Tabs,
   FormControlLabel,
-  Switch,
-  FormGroup
+  Switch
 } from '@mui/material';
 import {
   Chat as SlackIcon,
   Sync as SyncIcon,
-  Link as LinkIcon,
   LinkOff as UnlinkIcon,
   Send as SendIcon,
   Tag as TagIcon,
   Notifications as NotificationsIcon,
   NotificationsOff as NotificationsOffIcon
 } from '@mui/icons-material';
-import { useSelector } from 'react-redux';
 import api from '../services/api';
 
 function TabPanel({ children, value, index, ...other }) {
@@ -56,11 +51,9 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 const SlackIntegration = () => {
-  const { user } = useSelector((state) => state.auth);
   const [integration, setIntegration] = useState(null);
   const [channels, setChannels] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -71,7 +64,6 @@ const SlackIntegration = () => {
 
   useEffect(() => {
     loadIntegration();
-    loadProjects();
   }, []);
 
   const loadIntegration = async () => {
@@ -84,15 +76,6 @@ const SlackIntegration = () => {
       }
     } catch (error) {
       console.error('Error loading Slack integration:', error);
-    }
-  };
-
-  const loadProjects = async () => {
-    try {
-      const response = await api.get('/api/projects/');
-      setProjects(response.data);
-    } catch (error) {
-      console.error('Error loading projects:', error);
     }
   };
 
