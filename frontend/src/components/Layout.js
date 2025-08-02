@@ -7,7 +7,7 @@ import {
 import {
   Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, 
   AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon,
-  Extension as IntegrationIcon
+  Extension as IntegrationIcon, Analytics as AnalyticsIcon
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
@@ -84,6 +84,7 @@ const Layout = () => {
     { text: 'Teams', icon: <Group />, path: '/teams' },
     { text: 'Tasks', icon: <Assignment />, path: '/tasks' },
     { text: 'Chat', icon: <ChatIcon />, path: '/chat' },
+    { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
     { text: 'Integrations', icon: <IntegrationIcon />, path: '/integrations' },
     { text: 'Settings', icon: <Settings />, path: '/settings' },
   ];

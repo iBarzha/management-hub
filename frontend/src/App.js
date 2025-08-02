@@ -18,6 +18,7 @@ import Teams from './pages/Teams';
 import Tasks from './pages/Tasks';
 import ChatPage from './pages/Chat';
 import Integrations from './pages/Integrations';
+import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
 const theme = createTheme({
@@ -150,6 +151,7 @@ function App() {
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/github/callback" element={<Integrations />} />
             <Route path="integrations/slack/callback" element={<Integrations />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
