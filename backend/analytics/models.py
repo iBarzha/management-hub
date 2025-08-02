@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from projects.models import Project
 from tasks.models import Task
-from users.models import TeamMember
+from projects.models import TeamMember
 
 User = get_user_model()
 
