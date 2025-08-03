@@ -62,7 +62,7 @@ const Notifications = () => {
 
         // Send email notification if user has email notifications enabled
         try {
-          const userPrefsResponse = await api.get('/users/preferences/');
+          const userPrefsResponse = await api.get('/auth/preferences/');
           const userPrefs = userPrefsResponse.data;
           
           if (emailService.isEmailNotificationEnabled(userPrefs, data.notification_type)) {

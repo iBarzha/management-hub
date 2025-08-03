@@ -31,22 +31,22 @@ const Integrations = () => {
       if (code && state) {
         try {
           if (location.pathname === '/integrations/github/callback') {
-            await api.post('/api/integrations/github/connect/', {
+            await api.post('/integrations/github/connect/', {
               code: code,
               state: state
             });
           } else if (location.pathname === '/integrations/slack/callback') {
-            await api.post('/api/integrations/slack/connect/', {
+            await api.post('/integrations/slack/connect/', {
               code: code,
               state: state
             });
           } else if (location.pathname === '/integrations/discord/callback') {
-            await api.post('/api/integrations/discord/connect/', {
+            await api.post('/integrations/discord/connect/', {
               code: code,
               state: state
             });
           } else if (location.pathname === '/integrations/google/callback') {
-            await api.post('/api/integrations/google-calendar/connect/', {
+            await api.post('/integrations/google-calendar/connect/', {
               code: code,
               state: state
             });

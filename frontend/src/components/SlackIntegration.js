@@ -68,7 +68,7 @@ const SlackIntegration = () => {
 
   const loadIntegration = async () => {
     try {
-      const response = await api.get('/api/integrations/slack/');
+      const response = await api.get('/integrations/slack/');
       if (response.data.length > 0) {
         setIntegration(response.data[0]);
         loadChannels();
@@ -81,7 +81,7 @@ const SlackIntegration = () => {
 
   const loadChannels = async () => {
     try {
-      const response = await api.get('/api/integrations/slack-channels/');
+      const response = await api.get('/integrations/slack-channels/');
       setChannels(response.data);
     } catch (error) {
       console.error('Error loading channels:', error);
@@ -90,7 +90,7 @@ const SlackIntegration = () => {
 
   const loadMessages = async () => {
     try {
-      const response = await api.get('/api/integrations/slack-messages/');
+      const response = await api.get('/integrations/slack-messages/');
       setMessages(response.data);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -103,7 +103,7 @@ const SlackIntegration = () => {
       setError('');
       
       // Get authorization URL
-      const authResponse = await api.get('/api/integrations/slack/auth-url/');
+      const authResponse = await api.get('/integrations/slack/auth-url/');
       
       // Redirect to Slack OAuth
       window.location.href = authResponse.data.auth_url;
@@ -136,7 +136,7 @@ const SlackIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/slack-channels/sync/');
+      const response = await api.post('/integrations/slack-channels/sync/');
       setChannels(response.data.channels);
       setSuccess(`Synced ${response.data.synced_count} channels`);
       setLoading(false);

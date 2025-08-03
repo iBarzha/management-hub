@@ -49,7 +49,7 @@ const Settings = () => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/users/preferences/');
+      const response = await api.get('/auth/preferences/');
       setPreferences(response.data);
       setError('');
     } catch (error) {
@@ -73,7 +73,7 @@ const Settings = () => {
   const savePreferences = async () => {
     try {
       setSaving(true);
-      await api.patch('/users/preferences/', {
+      await api.patch('/auth/preferences/', {
         notification_preferences: {
           email_notifications: preferences.email_notifications
         }

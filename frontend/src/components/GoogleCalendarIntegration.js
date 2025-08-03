@@ -99,7 +99,7 @@ const GoogleCalendarIntegration = () => {
 
   const loadIntegration = async () => {
     try {
-      const response = await api.get('/api/integrations/google-calendar/');
+      const response = await api.get('/integrations/google-calendar/');
       if (response.data.length > 0) {
         setIntegration(response.data[0]);
         loadCalendars();
@@ -113,7 +113,7 @@ const GoogleCalendarIntegration = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get('/api/projects/');
+      const response = await api.get('/projects/');
       setProjects(response.data);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -122,7 +122,7 @@ const GoogleCalendarIntegration = () => {
 
   const loadCalendars = async () => {
     try {
-      const response = await api.get(`/api/integrations/google-calendar/${integration.id}/calendars/`);
+      const response = await api.get(`/integrations/google-calendar/${integration.id}/calendars/`);
       setCalendars(response.data.calendars || []);
     } catch (error) {
       console.error('Error loading calendars:', error);
@@ -131,7 +131,7 @@ const GoogleCalendarIntegration = () => {
 
   const loadEvents = async () => {
     try {
-      const response = await api.get('/api/integrations/calendar-events/');
+      const response = await api.get('/integrations/calendar-events/');
       setEvents(response.data);
     } catch (error) {
       console.error('Error loading events:', error);
@@ -140,7 +140,7 @@ const GoogleCalendarIntegration = () => {
 
   const loadMeetings = async () => {
     try {
-      const response = await api.get('/api/integrations/meeting-schedules/');
+      const response = await api.get('/integrations/meeting-schedules/');
       setMeetings(response.data);
     } catch (error) {
       console.error('Error loading meetings:', error);
@@ -153,7 +153,7 @@ const GoogleCalendarIntegration = () => {
       setError('');
       
       // Get authorization URL
-      const authResponse = await api.get('/api/integrations/google-calendar/auth-url/');
+      const authResponse = await api.get('/integrations/google-calendar/auth-url/');
       
       // Redirect to Google OAuth
       window.location.href = authResponse.data.auth_url;
@@ -209,7 +209,7 @@ const GoogleCalendarIntegration = () => {
         attendees: newEvent.attendees.map(attendee => attendee.email || attendee)
       };
       
-      await api.post('/api/integrations/calendar-events/create-from-google/', eventData);
+      await api.post('/integrations/calendar-events/create-from-google/', eventData);
       
       loadEvents();
       setCreateEventDialogOpen(false);
@@ -243,7 +243,7 @@ const GoogleCalendarIntegration = () => {
         attendees: newMeeting.attendees.map(attendee => attendee.id || attendee)
       };
       
-      await api.post('/api/integrations/meeting-schedules/', meetingData);
+      await api.post('/integrations/meeting-schedules/', meetingData);
       
       loadMeetings();
       setCreateMeetingDialogOpen(false);

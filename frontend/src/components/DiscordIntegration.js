@@ -87,7 +87,7 @@ const DiscordIntegration = () => {
 
   const loadIntegration = async () => {
     try {
-      const response = await api.get('/api/integrations/discord/');
+      const response = await api.get('/integrations/discord/');
       if (response.data.length > 0) {
         setIntegration(response.data[0]);
         loadChannels();
@@ -102,7 +102,7 @@ const DiscordIntegration = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get('/api/projects/');
+      const response = await api.get('/projects/');
       setProjects(response.data);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -111,7 +111,7 @@ const DiscordIntegration = () => {
 
   const loadChannels = async () => {
     try {
-      const response = await api.get('/api/integrations/discord-channels/');
+      const response = await api.get('/integrations/discord-channels/');
       setChannels(response.data);
     } catch (error) {
       console.error('Error loading channels:', error);
@@ -120,7 +120,7 @@ const DiscordIntegration = () => {
 
   const loadMessages = async () => {
     try {
-      const response = await api.get('/api/integrations/discord-messages/');
+      const response = await api.get('/integrations/discord-messages/');
       setMessages(response.data);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -129,7 +129,7 @@ const DiscordIntegration = () => {
 
   const loadCommands = async () => {
     try {
-      const response = await api.get('/api/integrations/discord-commands/');
+      const response = await api.get('/integrations/discord-commands/');
       setCommands(response.data);
     } catch (error) {
       console.error('Error loading commands:', error);
@@ -138,7 +138,7 @@ const DiscordIntegration = () => {
 
   const loadRoles = async () => {
     try {
-      const response = await api.get('/api/integrations/discord-roles/');
+      const response = await api.get('/integrations/discord-roles/');
       setRoles(response.data);
     } catch (error) {
       console.error('Error loading roles:', error);
@@ -151,7 +151,7 @@ const DiscordIntegration = () => {
       setError('');
       
       // Get authorization URL
-      const authResponse = await api.get('/api/integrations/discord/auth-url/');
+      const authResponse = await api.get('/integrations/discord/auth-url/');
       
       // Redirect to Discord OAuth
       window.location.href = authResponse.data.auth_url;
@@ -186,7 +186,7 @@ const DiscordIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/discord-channels/sync/');
+      const response = await api.post('/integrations/discord-channels/sync/');
       setChannels(response.data.channels);
       setSuccess(`Synced ${response.data.synced_count} channels`);
       setLoading(false);
@@ -223,7 +223,7 @@ const DiscordIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/discord/send-notification/', {
+      const response = await api.post('/integrations/discord/send-notification/', {
         channel_id: selectedChannel?.channel_id,
         message: 'Test notification from Project Management Hub! 🚀'
       });

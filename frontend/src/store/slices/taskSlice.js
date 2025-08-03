@@ -11,7 +11,7 @@ const initialState = {
 export const fetchTasks = createAsyncThunk(
   'tasks/fetchTasks',
   async (projectId = null) => {
-    const url = projectId ? `/api/tasks/?project=${projectId}` : '/api/tasks/';
+    const url = projectId ? `/tasks/?project=${projectId}` : '/tasks/';
     const response = await api.get(url);
     return response.data.results || response.data;
   }
@@ -20,7 +20,7 @@ export const fetchTasks = createAsyncThunk(
 export const fetchTask = createAsyncThunk(
   'tasks/fetchTask',
   async (taskId) => {
-    const response = await api.get(`/api/tasks/${taskId}/`);
+    const response = await api.get(`/tasks/${taskId}/`);
     return response.data;
   }
 );
@@ -29,7 +29,7 @@ export const createTask = createAsyncThunk(
   'tasks/createTask',
   async (taskData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/api/tasks/', taskData);
+      const response = await api.post('/tasks/', taskData);
       return response.data;
     } catch (error) {
       console.error('Create task error:', error.response?.data);
@@ -43,7 +43,7 @@ export const updateTask = createAsyncThunk(
   async ({ id, ...taskData }, { rejectWithValue }) => {
     try {
       console.log('Updating task:', id, taskData);
-      const response = await api.patch(`/api/tasks/${id}/`, taskData);
+      const response = await api.patch(`/tasks/${id}/`, taskData);
       console.log('Task update response:', response.data);
       return response.data;
     } catch (error) {
@@ -56,7 +56,7 @@ export const updateTask = createAsyncThunk(
 export const deleteTask = createAsyncThunk(
   'tasks/deleteTask',
   async (taskId) => {
-    await api.delete(`/api/tasks/${taskId}/`);
+    await api.delete(`/tasks/${taskId}/`);
     return taskId;
   }
 );

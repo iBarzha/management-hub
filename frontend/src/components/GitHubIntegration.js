@@ -74,7 +74,7 @@ const GitHubIntegration = () => {
 
   const loadIntegration = async () => {
     try {
-      const response = await api.get('/api/integrations/github/');
+      const response = await api.get('/integrations/github/');
       if (response.data.length > 0) {
         setIntegration(response.data[0]);
         loadRepositories();
@@ -88,7 +88,7 @@ const GitHubIntegration = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get('/api/projects/');
+      const response = await api.get('/projects/');
       setProjects(response.data);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -97,7 +97,7 @@ const GitHubIntegration = () => {
 
   const loadRepositories = async () => {
     try {
-      const response = await api.get('/api/integrations/github-repositories/');
+      const response = await api.get('/integrations/github-repositories/');
       setRepositories(response.data);
     } catch (error) {
       console.error('Error loading repositories:', error);
@@ -106,7 +106,7 @@ const GitHubIntegration = () => {
 
   const loadIssues = async () => {
     try {
-      const response = await api.get('/api/integrations/github-issues/');
+      const response = await api.get('/integrations/github-issues/');
       setIssues(response.data);
     } catch (error) {
       console.error('Error loading issues:', error);
@@ -115,7 +115,7 @@ const GitHubIntegration = () => {
 
   const loadCommits = async () => {
     try {
-      const response = await api.get('/api/integrations/github-commits/');
+      const response = await api.get('/integrations/github-commits/');
       setCommits(response.data);
     } catch (error) {
       console.error('Error loading commits:', error);
@@ -128,7 +128,7 @@ const GitHubIntegration = () => {
       setError('');
       
       // Get authorization URL
-      const authResponse = await api.get('/api/integrations/github/auth-url/');
+      const authResponse = await api.get('/integrations/github/auth-url/');
       
       // Redirect to GitHub OAuth
       window.location.href = authResponse.data.auth_url;
@@ -143,7 +143,7 @@ const GitHubIntegration = () => {
       setLoading(true);
       setError('');
       
-      await api.delete(`/api/integrations/github/${integration.id}/disconnect/`);
+      await api.delete(`/integrations/github/${integration.id}/disconnect/`);
       
       setIntegration(null);
       setRepositories([]);
@@ -162,7 +162,7 @@ const GitHubIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/github-repositories/sync/');
+      const response = await api.post('/integrations/github-repositories/sync/');
       setRepositories(response.data.repositories);
       setSuccess(`Synced ${response.data.synced_count} repositories`);
       setLoading(false);
@@ -177,7 +177,7 @@ const GitHubIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/github-issues/sync/');
+      const response = await api.post('/integrations/github-issues/sync/');
       setIssues(response.data.issues);
       setSuccess(`Synced ${response.data.synced_count} issues`);
       setLoading(false);
@@ -192,7 +192,7 @@ const GitHubIntegration = () => {
       setLoading(true);
       setError('');
       
-      const response = await api.post('/api/integrations/github-commits/sync/');
+      const response = await api.post('/integrations/github-commits/sync/');
       setCommits(response.data.commits);
       setSuccess(`Synced ${response.data.synced_count} commits`);
       setLoading(false);
@@ -208,7 +208,7 @@ const GitHubIntegration = () => {
       setError('');
       
       await api.post(
-        `/api/integrations/github-repositories/${selectedRepository.id}/connect-project/`,
+        `/integrations/github-repositories/${selectedRepository.id}/connect-project/`,
         { project_id: selectedProject.id }
       );
       

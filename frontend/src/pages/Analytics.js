@@ -95,7 +95,7 @@ const Analytics = () => {
 
   const loadProjects = async () => {
     try {
-      const response = await api.get('/api/projects/');
+      const response = await api.get('/projects/');
       setProjects(response.data.results || response.data);
       if (response.data.results?.length > 0 || response.data.length > 0) {
         const firstProject = response.data.results?.[0] || response.data[0];
@@ -116,25 +116,25 @@ const Analytics = () => {
     try {
       // Load dashboard data
       const dashboardResponse = await api.get(
-        `/api/analytics/projects/${selectedProject}/dashboard/?days=${dateRange}`
+        `/analytics/projects/${selectedProject}/dashboard/?days=${dateRange}`
       );
       setDashboardData(dashboardResponse.data);
 
       // Load burndown data
       const burndownResponse = await api.get(
-        `/api/analytics/projects/${selectedProject}/burndown/?days=${dateRange}`
+        `/analytics/projects/${selectedProject}/burndown/?days=${dateRange}`
       );
       setBurndownData(burndownResponse.data);
 
       // Load velocity data
       const velocityResponse = await api.get(
-        `/api/analytics/projects/${selectedProject}/velocity/?weeks=12`
+        `/analytics/projects/${selectedProject}/velocity/?weeks=12`
       );
       setVelocityData(velocityResponse.data);
 
       // Load team performance
       const teamResponse = await api.get(
-        `/api/analytics/projects/${selectedProject}/team-performance/?days=${dateRange}`
+        `/analytics/projects/${selectedProject}/team-performance/?days=${dateRange}`
       );
       setTeamPerformance(teamResponse.data);
 
@@ -151,7 +151,7 @@ const Analytics = () => {
     
     setLoading(true);
     try {
-      await api.post(`/api/analytics/projects/${selectedProject}/metrics/refresh/`);
+      await api.post(`/analytics/projects/${selectedProject}/metrics/refresh/`);
       await loadAnalyticsData();
     } catch (error) {
       console.error('Error refreshing metrics:', error);
@@ -169,7 +169,7 @@ const Analytics = () => {
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - dateRange);
       
-      const response = await api.post('/api/analytics/reports/generate/', {
+      const response = await api.post('/analytics/reports/generate/', {
         project_id: selectedProject,
         report_type: 'project_summary',
         export_format: format,
