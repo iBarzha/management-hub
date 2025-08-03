@@ -1,6 +1,7 @@
 import os
 import requests
 import asyncio
+import logging
 from datetime import datetime
 from django.conf import settings
 from django.shortcuts import redirect
@@ -28,6 +29,7 @@ from .serializers import (
 from .discord_bot import bot_manager
 from .google_calendar_service import GoogleCalendarService
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -416,7 +418,7 @@ class GitHubCommitViewSet(viewsets.ModelViewSet):
                         
                     except Exception as commit_error:
                         # Log individual commit errors but continue processing
-                        print(f"Error processing commit {commit.sha}: {commit_error}")
+                        logger.error(f"Error processing commit {commit.sha}: {commit_error}")
                         continue
             
             serializer = self.get_serializer(synced_commits, many=True)

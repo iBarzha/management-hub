@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -10,6 +11,8 @@ from .serializers import (
     MeetingScheduleSerializer, CalendarSyncSerializer
 )
 from .google_calendar_service import GoogleCalendarService
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleCalendarIntegrationViewSet(viewsets.ModelViewSet):
@@ -413,7 +416,7 @@ class MeetingScheduleViewSet(viewsets.ModelViewSet):
                 pass
             except Exception as calendar_error:
                 # Log the error but don't fail the meeting creation
-                print(f"Failed to create calendar event: {calendar_error}")
+                logger.error(f"Failed to create calendar event: {calendar_error}")
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

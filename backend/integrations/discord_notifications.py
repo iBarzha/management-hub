@@ -6,7 +6,6 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from django.conf import settings
-from django.template.loader import render_to_string
 from asgiref.sync import sync_to_async
 
 from .models import DiscordIntegration, DiscordChannel
