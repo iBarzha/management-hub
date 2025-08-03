@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {Box, Card, CardContent, TextField, IconButton, Typography, List, ListItem, ListItemText, ListItemAvatar,
-  Avatar, Chip, Divider, Badge, Stack} from '@mui/material';
+import {Box, Card, CardContent, TextField, IconButton, Typography,
+  Avatar, Chip, Badge, Stack} from '@mui/material';
 import { 
   Send as SendIcon, 
   Circle as CircleIcon,
@@ -68,7 +68,7 @@ const Chat = ({ room, height = 400 }) => {
           }
           break;
         default:
-          console.log('Unknown message type:', data.type);
+          // Unknown message type
       }
     };
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog,
+import {Box, Typography, Card, CardContent, Button, Chip, CircularProgress, Dialog,
   DialogTitle, DialogContent, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import { 
   Add, Assignment, DragIndicator, MoreVert, Person, Schedule,
@@ -378,8 +378,6 @@ const Tasks = () => {
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
-    console.log(`Updating task ${taskId} status to ${newStatus}`);
-
     try {
       // Use PATCH for partial update - only send the status
       const result = await dispatch(updateTask({ 
@@ -388,7 +386,6 @@ const Tasks = () => {
       }));
       
       if (updateTask.fulfilled.match(result)) {
-        console.log('Task status updated successfully');
         
         // Send real-time update if project is selected
         if (selectedProject) {
@@ -460,7 +457,7 @@ const Tasks = () => {
     // Check if we're dropping over a column
     const overColumn = statusColumns.find(col => col.key === overId);
     if (overColumn && draggedTask.status !== overColumn.key) {
-      console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overColumn.key}`);
+      // Moving task to different column
       // Optimistically update the UI immediately
       setOptimisticUpdates(prev => ({ ...prev, [activeId]: overColumn.key }));
       // Clear active immediately to prevent snap-back animation
@@ -497,7 +494,7 @@ const Tasks = () => {
     // Check if we're dropping over another task (to get the column)
     const overTask = filteredTasks.find(t => t.id === overId);
     if (overTask && draggedTask.status !== overTask.status) {
-      console.log(`Moving task ${activeId} from ${draggedTask.status} to ${overTask.status}`);
+      // Moving task to different status
       // Optimistically update the UI immediately
       setOptimisticUpdates(prev => ({ ...prev, [activeId]: overTask.status }));
       // Clear active immediately to prevent snap-back animation

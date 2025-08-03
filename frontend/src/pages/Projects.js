@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import { 
-  Add, Folder, MoreVert, Edit, Delete, People, CalendarToday, 
-  TrendingUp, Assignment, Timeline, FilterList} from '@mui/icons-material';
+  Add, Folder, MoreVert, People, CalendarToday, 
+  Assignment, FilterList} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects, createProject } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';

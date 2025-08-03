@@ -1,40 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import {Box, Card, CardContent, Typography, Button, Grid, Avatar, Chip, List, ListItem, ListItemText, ListItemAvatar, IconButton,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Autocomplete, Alert, CircularProgress, Tab, Tabs} from '@mui/material';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Grid,
-  Avatar,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Autocomplete,
-  Alert,
-  CircularProgress,
-  Divider,
-  Tab,
-  Tabs,
-  Link
-} from '@mui/material';
-import {
-  GitHub as GitHubIcon,
-  Sync as SyncIcon,
-  Link as LinkIcon,
-  LinkOff as UnlinkIcon,
-  OpenInNew as OpenInNewIcon,
-  Code as CodeIcon,
-  BugReport as BugReportIcon
-} from '@mui/icons-material';
+  GitHub as GitHubIcon, Sync as SyncIcon, Link as LinkIcon, LinkOff as UnlinkIcon, OpenInNew as OpenInNewIcon,
+  Code as CodeIcon, BugReport as BugReportIcon} from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import api from '../services/api';
 

@@ -22,7 +22,6 @@ class WebSocketService {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log(`WebSocket connected to ${room}`);
       this.isConnecting.set(connectionKey, false);
     };
 
@@ -36,7 +35,6 @@ class WebSocketService {
     };
 
     ws.onclose = (event) => {
-      console.log(`WebSocket disconnected from ${room}:`, event.code, event.reason);
       this.connections.delete(connectionKey);
       this.isConnecting.set(connectionKey, false);
       

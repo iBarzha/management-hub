@@ -1,30 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Grid,
-  Avatar,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Alert,
-  CircularProgress,
-  Tab,
-  Tabs,
-  FormControlLabel,
-  Switch
-} from '@mui/material';
+import {Box, Card, CardContent, Typography, Button, Grid, Avatar, Chip, List, ListItem, ListItemText, ListItemAvatar,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, CircularProgress, Tab, Tabs,
+  FormControlLabel, Switch} from '@mui/material';
 import {
   Chat as SlackIcon,
   Sync as SyncIcon,

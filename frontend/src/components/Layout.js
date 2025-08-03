@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Drawer, AppBar, Toolbar, List, Typography, Divider, IconButton, ListItem,
-  ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Badge, Chip
+  ListItemButton, ListItemIcon, ListItemText, Avatar, Menu, MenuItem, Chip
 } from '@mui/material';
 import {
   Menu as MenuIcon, Dashboard, Work, Group, Assignment, Chat as ChatIcon, 
-  AccountCircle, Logout, Settings, Person, Notifications as NotificationsIcon,
+  Logout, Settings, Person,
   Extension as IntegrationIcon, Analytics as AnalyticsIcon
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';

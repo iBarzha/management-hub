@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {Box, Typography, Grid, Card, CardContent, Button, Avatar, Chip, CircularProgress, Dialog,
+import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField} from '@mui/material';
 import { 
-  Add, People, MoreVert, Group, PersonAdd, Settings,
+  Add, People, MoreVert, Group, PersonAdd,
   Work, Assignment, Star, TrendingUp
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';

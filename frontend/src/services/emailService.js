@@ -12,7 +12,6 @@ class EmailService {
     if (this.serviceId && this.templateId && this.publicKey) {
       emailjs.init(this.publicKey);
       this.initialized = true;
-      console.log('EmailJS initialized successfully');
     } else {
       console.warn('EmailJS configuration missing. Email notifications will be disabled.');
     }
@@ -43,7 +42,6 @@ class EmailService {
         templateParams
       );
 
-      console.log('Email notification sent successfully:', response);
       return true;
     } catch (error) {
       console.error('Failed to send email notification:', error);

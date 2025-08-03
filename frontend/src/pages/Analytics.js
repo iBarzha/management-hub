@@ -1,60 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Grid,
-  Tab,
-  Tabs,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-  CircularProgress,
-  Alert,
-  Chip,
-  IconButton,
-  Tooltip,
-  Paper
-} from '@mui/material';
-import {
-  Analytics as AnalyticsIcon,
-  TrendingUp as TrendingUpIcon,
-  Group as GroupIcon,
-  Assessment as AssessmentIcon,
-  Timeline as TimelineIcon,
-  Refresh as RefreshIcon,
-  Download as DownloadIcon,
-  DateRange as DateRangeIcon
+import {Box, Card, CardContent, Typography, Grid, Tab, Tabs, FormControl, InputLabel, Select, MenuItem,
+  Button, CircularProgress, Alert, Chip, IconButton, Tooltip, Paper} from '@mui/material';
+import {Analytics as AnalyticsIcon, TrendingUp as TrendingUpIcon, Group as GroupIcon,
+  Assessment as AssessmentIcon, Timeline as TimelineIcon, Refresh as RefreshIcon, Download as DownloadIcon
 } from '@mui/icons-material';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip as ChartTooltip,
-  Legend,
-  ArcElement
-} from 'chart.js';
+import {Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title,
+  Tooltip as ChartTooltip, Legend, ArcElement} from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import api from '../services/api';
 
 // Register Chart.js components
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  ChartTooltip,
-  Legend,
-  ArcElement
+  CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, ChartTooltip, Legend, ArcElement
 );
 
 function TabPanel({ children, value, index, ...other }) {

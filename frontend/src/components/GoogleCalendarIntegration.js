@@ -1,40 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Grid,
-  Avatar,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Autocomplete,
-  Alert,
-  CircularProgress,
-  Divider,
-  Tab,
-  Tabs,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+import {Box, Card, CardContent, Typography, Button, Grid, Avatar, Chip, List, ListItem, ListItemText, ListItemAvatar,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Autocomplete, Alert, CircularProgress, Tab, Tabs
 } from '@mui/material';
 import {
   Event as CalendarIcon,
   Sync as SyncIcon,
-  Link as LinkIcon,
   LinkOff as UnlinkIcon,
-  OpenInNew as OpenInNewIcon,
   VideoCall as VideoCallIcon,
   Schedule as ScheduleIcon,
   People as PeopleIcon

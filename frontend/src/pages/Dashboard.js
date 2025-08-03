@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import {
-  Grid, Paper, Typography, Box, Card, CardContent, LinearProgress, Avatar,
-  Chip, IconButton, Button, Stack, Divider
+  Grid, Typography, Box, Card, CardContent, LinearProgress, Avatar,
+  Chip, IconButton, Button, Stack
 } from '@mui/material';
 import {
-  People, Work, Assignment, CheckCircle, TrendingUp, TrendingDown,
+  People, Work, Assignment, CheckCircle, TrendingUp,
   Add, MoreVert, CalendarToday, Schedule
 } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
