@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {Box, Card, CardContent, Typography, Button, Grid, Avatar, Chip, List, ListItem, ListItemText,
+import {Box, Card, CardContent, Typography, Button, Grid, Avatar, Chip, List, ListItem, ListItemText, ListItemAvatar,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Autocomplete, Alert, CircularProgress,
-  Tab, Tabs, FormControlLabel, Switch,} from '@mui/material';
+  Tab, Tabs, FormControlLabel, Switch} from '@mui/material';
 import {
   Forum as DiscordIcon,
   Sync as SyncIcon,
