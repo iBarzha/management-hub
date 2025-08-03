@@ -18,7 +18,7 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['notification_preferences']
+        fields = ['notification_preferences', 'email_notifications']
         
     def to_representation(self, instance):
         data = super().to_representation(instance)

@@ -37,9 +37,7 @@ class ProjectMetricsListView(generics.ListAPIView):
         user = self.request.user
         # Get projects where user is a team member
         user_projects = Project.objects.filter(
-            team__members__user=user,
-            team__members__is_active=True
-        ).distinct()
+            team__members__user=user).distinct()
         
         return ProjectMetrics.objects.filter(project__in=user_projects).select_related('project')
 
@@ -56,7 +54,7 @@ class ProjectMetricsDetailView(generics.RetrieveAPIView):
         project = get_object_or_404(Project, id=project_id)
         
         # Check if user has access to this project
-        if not project.team.members.filter(user=self.request.user, is_active=True).exists():
+        if not project.team.members.filter(user=self.request.user).exists():
             self.permission_denied(self.request)
         
         # Calculate fresh metrics
@@ -71,7 +69,7 @@ class ProjectAnalyticsDashboardView(APIView):
         project = get_object_or_404(Project, id=project_id)
         
         # Check access
-        if not project.team.members.filter(user=request.user, is_active=True).exists():
+        if not project.team.members.filter(user=request.user).exists():
             return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
         
         # Date range parameters
@@ -103,7 +101,7 @@ class BurndownChartDataView(APIView):
         project = get_object_or_404(Project, id=project_id)
         
         # Check access
-        if not project.team.members.filter(user=request.user, is_active=True).exists():
+        if not project.team.members.filter(user=request.user).exists():
             return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
         
         # Get parameters
@@ -133,7 +131,7 @@ class VelocityTrendView(APIView):
         project = get_object_or_404(Project, id=project_id)
         
         # Check access
-        if not project.team.members.filter(user=request.user, is_active=True).exists():
+        if not project.team.members.filter(user=request.user).exists():
             return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
         
         weeks = int(request.query_params.get('weeks', 12))
@@ -154,7 +152,7 @@ class TeamPerformanceView(APIView):
         project = get_object_or_404(Project, id=project_id)
         
         # Check access
-        if not project.team.members.filter(user=request.user, is_active=True).exists():
+        if not project.team.members.filter(user=request.user).exists():
             return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
         
         # Date range
@@ -163,7 +161,7 @@ class TeamPerformanceView(APIView):
         start_date = end_date - timedelta(days=days)
         
         # Get team members
-        team_members = project.team.members.filter(is_active=True)
+        team_members = project.team.members.all()
         performance_data = []
         
         for member in team_members:
@@ -209,9 +207,7 @@ class TaskMetricsListView(generics.ListAPIView):
         
         # Filter by user's accessible projects
         user_projects = Project.objects.filter(
-            team__members__user=user,
-            team__members__is_active=True
-        ).distinct()
+            team__members__user=user).distinct()
         queryset = queryset.filter(task__project__in=user_projects)
         
         # Additional filters
@@ -241,15 +237,13 @@ class SprintMetricsListView(generics.ListAPIView):
         if project_id:
             project = get_object_or_404(Project, id=project_id)
             # Check access
-            if not project.team.members.filter(user=user, is_active=True).exists():
+            if not project.team.members.filter(user=user).exists():
                 return SprintMetrics.objects.none()
             queryset = queryset.filter(project=project)
         else:
             # Filter by accessible projects
             user_projects = Project.objects.filter(
-                team__members__user=user,
-                team__members__is_active=True
-            ).distinct()
+                team__members__user=user).distinct()
             queryset = queryset.filter(project__in=user_projects)
         
         return queryset.order_by('-sprint_number')
@@ -264,9 +258,7 @@ class ProjectComparisonView(APIView):
         
         # Get all projects user has access to
         user_projects = Project.objects.filter(
-            team__members__user=user,
-            team__members__is_active=True
-        ).distinct()
+            team__members__user=user).distinct()
         
         comparison_data = []
         
@@ -308,7 +300,7 @@ class GenerateReportView(APIView):
         
         # Validate project access
         project = get_object_or_404(Project, id=project_id)
-        if not project.team.members.filter(user=request.user, is_active=True).exists():
+        if not project.team.members.filter(user=request.user).exists():
             return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
         
         # Parse dates
@@ -388,7 +380,7 @@ def refresh_project_metrics(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     
     # Check access
-    if not project.team.members.filter(user=request.user, is_active=True).exists():
+    if not project.team.members.filter(user=request.user).exists():
         return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
     
     # Clear cache
@@ -411,7 +403,7 @@ def create_analytics_snapshot(request, project_id):
     project = get_object_or_404(Project, id=project_id)
     
     # Check access
-    if not project.team.members.filter(user=request.user, is_active=True).exists():
+    if not project.team.members.filter(user=request.user).exists():
         return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
     
     snapshot_type = request.data.get('snapshot_type', 'manual')
@@ -440,14 +432,12 @@ class AnalyticsSnapshotListView(generics.ListAPIView):
         
         if project_id:
             project = get_object_or_404(Project, id=project_id)
-            if not project.team.members.filter(user=user, is_active=True).exists():
+            if not project.team.members.filter(user=user).exists():
                 return AnalyticsSnapshot.objects.none()
             queryset = queryset.filter(project=project)
         else:
             user_projects = Project.objects.filter(
-                team__members__user=user,
-                team__members__is_active=True
-            ).distinct()
+                team__members__user=user).distinct()
             queryset = queryset.filter(project__in=user_projects)
         
         return queryset.filter(

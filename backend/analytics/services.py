@@ -99,8 +99,7 @@ class MetricsCalculationService:
             
             # Calculate team metrics
             metrics.active_team_members = TeamMember.objects.filter(
-                team=project.team,
-                is_active=True
+                team=project.team
             ).count()
             
             # Estimate completion date based on current velocity
@@ -365,7 +364,7 @@ class ReportService:
         ).values('priority').annotate(count=Count('id'))
         
         # Team performance
-        team_members = TeamMember.objects.filter(team=project.team, is_active=True)
+        team_members = TeamMember.objects.filter(team=project.team)
         team_performance = []
         
         for member in team_members:
