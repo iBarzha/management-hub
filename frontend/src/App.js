@@ -14,7 +14,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
 import Teams from './pages/Teams';
+import TeamDetail from './pages/TeamDetail';
 import Tasks from './pages/Tasks';
 import ChatPage from './pages/Chat';
 import Integrations from './pages/Integrations';
@@ -145,7 +147,9 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="projects" element={<Projects />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="teams" element={<Teams />} />
+            <Route path="teams/:id" element={<TeamDetail />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="integrations" element={<Integrations />} />

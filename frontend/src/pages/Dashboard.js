@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Grid, Typography, Box, Card, CardContent, LinearProgress, Avatar,
-  Chip, IconButton, Button, Stack
+  Chip, IconButton, Button, Stack, Menu, MenuItem
 } from '@mui/material';
 import {
   People, Work, Assignment, CheckCircle, TrendingUp,
   Add, MoreVert, CalendarToday, Schedule
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchProjects } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
@@ -14,10 +15,13 @@ import { fetchTasks } from '../store/slices/taskSlice';
 
 const Dashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { projects } = useSelector((state) => state.projects);
   const { teams } = useSelector((state) => state.teams);
   const { tasks } = useSelector((state) => state.tasks);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedCard, setSelectedCard] = useState('');
 
   useEffect(() => {
     dispatch(fetchProjects());
@@ -100,7 +104,14 @@ const Dashboard = () => {
                   >
                     {stat.icon}
                   </Box>
-                  <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                  <IconButton 
+                    size="small" 
+                    sx={{ color: 'text.secondary' }}
+                    onClick={(e) => {
+                      setAnchorEl(e.currentTarget);
+                      setSelectedCard(stat.title);
+                    }}
+                  >
                     <MoreVert fontSize="small" />
                   </IconButton>
                 </Box>
@@ -128,7 +139,12 @@ const Dashboard = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Recent Activities
                 </Typography>
-                <Button variant="outlined" size="small" startIcon={<Add />}>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  startIcon={<Add />}
+                  onClick={() => navigate('/analytics')}
+                >
                   View All
                 </Button>
               </Box>
@@ -218,7 +234,13 @@ const Dashboard = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Project Progress
                 </Typography>
-                <IconButton size="small">
+                <IconButton 
+                  size="small"
+                  onClick={(e) => {
+                    setAnchorEl(e.currentTarget);
+                    setSelectedCard('Project Progress');
+                  }}
+                >
                   <MoreVert fontSize="small" />
                 </IconButton>
               </Box>
@@ -272,7 +294,12 @@ const Dashboard = () => {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                       No active projects yet
                     </Typography>
-                    <Button variant="contained" startIcon={<Add />} size="small">
+                    <Button 
+                      variant="contained" 
+                      startIcon={<Add />} 
+                      size="small"
+                      onClick={() => navigate('/projects')}
+                    >
                       Create Project
                     </Button>
                   </Box>
@@ -288,7 +315,11 @@ const Dashboard = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Upcoming Deadlines
                 </Typography>
-                <Button variant="text" endIcon={<CalendarToday />}>
+                <Button 
+                  variant="text" 
+                  endIcon={<CalendarToday />}
+                  onClick={() => navigate('/integrations')}
+                >
                   View Calendar
                 </Button>
               </Box>
@@ -392,6 +423,28 @@ const Dashboard = () => {
           </Card>
         </Grid>
       </Grid>
+      
+      {/* Context Menu for card actions */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem onClick={() => {
+          console.log(`View details for ${selectedCard}`);
+          setAnchorEl(null);
+        }}>View Details</MenuItem>
+        <MenuItem onClick={() => {
+          console.log(`Export ${selectedCard}`);
+          setAnchorEl(null);
+        }}>Export Data</MenuItem>
+        <MenuItem onClick={() => {
+          console.log(`Configure ${selectedCard}`);
+          setAnchorEl(null);
+        }}>Configure</MenuItem>
+      </Menu>
     </Box>
   );
 };
