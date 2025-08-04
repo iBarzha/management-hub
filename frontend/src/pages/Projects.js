@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
+  DialogActions, TextField, FormControl, InputLabel, Select, MenuItem, Menu} from '@mui/material';
 import { 
   Add, Folder, MoreVert, People, CalendarToday, 
   Assignment, FilterList} from '@mui/icons-material';
@@ -8,12 +8,17 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects, createProject } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 
 const Projects = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { projects, isLoading, error } = useSelector((state) => state.projects);
   const { teams } = useSelector((state) => state.teams);
   const [openDialog, setOpenDialog] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -85,6 +90,10 @@ const Projects = () => {
               variant="outlined"
               startIcon={<FilterList />}
               sx={{ borderRadius: 2 }}
+              onClick={(e) => {
+                setAnchorEl(e.currentTarget);
+                setSelectedProject('filter');
+              }}
             >
               Filter
             </Button>
@@ -151,7 +160,7 @@ const Projects = () => {
         </Card>
       ) : (
         <Grid container spacing={3}>
-          {projects.map((project) => (
+          {projects.filter(project => filterStatus === 'all' || project.status === filterStatus).map((project) => (
             <Grid item xs={12} md={6} lg={4} key={project.id}>
               <Card 
                 sx={{ 
@@ -166,6 +175,7 @@ const Projects = () => {
                     boxShadow: '0 8px 25px 0 rgb(0 0 0 / 0.15)',
                   }
                 }}
+                onClick={() => navigate(`/projects/${project.id}`)}
               >
                 <CardContent sx={{ flexGrow: 1, p: 3 }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
@@ -196,6 +206,11 @@ const Projects = () => {
                     <Button
                       size="small"
                       sx={{ minWidth: 'auto', p: 0.5 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAnchorEl(e.currentTarget);
+                        setSelectedProject(project);
+                      }}
                     >
                       <MoreVert fontSize="small" />
                     </Button>
@@ -334,6 +349,50 @@ const Projects = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        {selectedProject === 'filter' ? (
+          [{ label: 'All Projects', value: 'all' },
+           { label: 'Active', value: 'active' },
+           { label: 'Planning', value: 'planning' },
+           { label: 'On Hold', value: 'on_hold' },
+           { label: 'Completed', value: 'completed' },
+           { label: 'Archived', value: 'archived' }].map((filter) => (
+            <MenuItem key={filter.value} onClick={() => {
+              setFilterStatus(filter.value);
+              setAnchorEl(null);
+            }}>
+              {filter.label}
+            </MenuItem>
+          ))
+        ) : (
+          [
+            <MenuItem key="view" onClick={() => {
+              navigate(`/projects/${selectedProject?.id}`);
+              setAnchorEl(null);
+            }}>View Details</MenuItem>,
+            <MenuItem key="edit" onClick={() => {
+              console.log('Edit project:', selectedProject?.name);
+              setAnchorEl(null);
+            }}>Edit Project</MenuItem>,
+            <MenuItem key="tasks" onClick={() => {
+              navigate(`/tasks?project=${selectedProject?.id}`);
+              setAnchorEl(null);
+            }}>View Tasks</MenuItem>,
+            <MenuItem key="archive" onClick={() => {
+              console.log('Archive project:', selectedProject?.name);
+              setAnchorEl(null);
+            }}>Archive</MenuItem>
+          ]
+        )}
+      </Menu>
     </Box>
   );
 };
