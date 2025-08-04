@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog,
-  DialogTitle, DialogContent, DialogActions, TextField} from '@mui/material';
+  DialogTitle, DialogContent, DialogActions, TextField, Menu, MenuItem} from '@mui/material';
 import { 
   Add, People, MoreVert, Group, PersonAdd,
   Work, Assignment, Star, TrendingUp
@@ -8,11 +8,15 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchTeams, createTeam } from '../store/slices/teamSlice';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 
 const Teams = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { teams, isLoading, error } = useSelector((state) => state.teams);
   const [openDialog, setOpenDialog] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(null);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -136,6 +140,7 @@ const Teams = () => {
                     boxShadow: '0 8px 25px 0 rgb(0 0 0 / 0.15)',
                   }
                 }}
+                onClick={() => navigate(`/teams/${team.id}`)}
               >
                 <CardContent sx={{ flexGrow: 1, p: 3 }}>
                   <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
@@ -166,7 +171,15 @@ const Teams = () => {
                         </Box>
                       </Box>
                     </Box>
-                    <Button size="small" sx={{ minWidth: 'auto', p: 0.5 }}>
+                    <Button 
+                      size="small" 
+                      sx={{ minWidth: 'auto', p: 0.5 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAnchorEl(e.currentTarget);
+                        setSelectedTeam(team);
+                      }}
+                    >
                       <MoreVert fontSize="small" />
                     </Button>
                   </Box>
@@ -234,6 +247,11 @@ const Teams = () => {
                       size="small" 
                       startIcon={<PersonAdd />}
                       sx={{ flex: 1, borderRadius: 1.5 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Invite members to team:', team.name);
+                        // Navigate to team invite page or open invite modal
+                      }}
                     >
                       Invite
                     </Button>
@@ -244,6 +262,10 @@ const Teams = () => {
                         flex: 1, 
                         borderRadius: 1.5,
                         background: index % 2 === 0 ? 'linear-gradient(135deg, #2563eb, #1e40af)' : 'linear-gradient(135deg, #7c3aed, #5b21b6)'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/teams/${team.id}/manage`);
                       }}
                     >
                       Manage
@@ -287,6 +309,36 @@ const Teams = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem onClick={() => {
+          navigate(`/teams/${selectedTeam?.id}`);
+          setAnchorEl(null);
+        }}>View Details</MenuItem>
+        <MenuItem onClick={() => {
+          console.log('Edit team:', selectedTeam?.name);
+          setAnchorEl(null);
+        }}>Edit Team</MenuItem>
+        <MenuItem onClick={() => {
+          navigate(`/teams/${selectedTeam?.id}/members`);
+          setAnchorEl(null);
+        }}>Manage Members</MenuItem>
+        <MenuItem onClick={() => {
+          navigate(`/projects?team=${selectedTeam?.id}`);
+          setAnchorEl(null);
+        }}>View Projects</MenuItem>
+        <MenuItem onClick={() => {
+          console.log('Delete team:', selectedTeam?.name);
+          setAnchorEl(null);
+        }}>Delete Team</MenuItem>
+      </Menu>
     </Box>
   );
 };
