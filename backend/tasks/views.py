@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Task, TaskComment, TaskAttachment
 from .serializers import TaskSerializer, TaskDetailSerializer, TaskCommentSerializer, TaskAttachmentSerializer
+from users.permissions import CanModifyTask, CanCreateTask, IsOwnerOrReadOnly, IsTeamMemberOrReadOnly
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -17,6 +18,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return TaskDetailSerializer
         return TaskSerializer
+
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action == 'create':
+            self.permission_classes = [CanCreateTask]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            self.permission_classes = [CanModifyTask]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -61,6 +70,12 @@ class TaskCommentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return TaskComment.objects.filter(task__project__team__members__user=self.request.user).distinct()
 
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['update', 'partial_update', 'destroy']:
+            self.permission_classes = [IsOwnerOrReadOnly]
+        return super().get_permissions()
+
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
@@ -71,6 +86,12 @@ class TaskAttachmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return TaskAttachment.objects.filter(task__project__team__members__user=self.request.user).distinct()
+
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['update', 'partial_update', 'destroy']:
+            self.permission_classes = [IsOwnerOrReadOnly]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
