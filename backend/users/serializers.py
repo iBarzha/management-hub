@@ -1,16 +1,43 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from .validators import CustomValidationMixin, InputSanitizer, SQLInjectionValidator
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(CustomValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'avatar', 'bio', 'timezone',
                   'notification_preferences', 'is_online', 'last_seen', 'created_at']
         read_only_fields = ['id', 'created_at', 'is_online', 'last_seen']
+    
+    def validate_email(self, value):
+        """Validate and sanitize email."""
+        return self.validate_email_field(value)
+    
+    def validate_username(self, value):
+        """Validate and sanitize username."""
+        if value:
+            SQLInjectionValidator.validate_input(value)
+            return InputSanitizer.validate_username(value)
+        return value
+    
+    def validate_bio(self, value):
+        """Validate and sanitize bio."""
+        return self.validate_text_field(value, 'bio', max_length=500)
+    
+    def validate_avatar(self, value):
+        """Validate avatar URL."""
+        return self.validate_url_field(value)
+    
+    def validate_timezone(self, value):
+        """Validate timezone."""
+        if value:
+            SQLInjectionValidator.validate_input(value)
+            return self.validate_text_field(value, 'timezone', max_length=50)
+        return value
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):
@@ -58,13 +85,24 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
         return instance
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(CustomValidationMixin, serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
         fields = ['email', 'username', 'password', 'password2']
+
+    def validate_email(self, value):
+        """Validate and sanitize email."""
+        return self.validate_email_field(value)
+    
+    def validate_username(self, value):
+        """Validate and sanitize username."""
+        if value:
+            SQLInjectionValidator.validate_input(value)
+            return InputSanitizer.validate_username(value)
+        return value
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
