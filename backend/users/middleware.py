@@ -89,9 +89,47 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         response['X-XSS-Protection'] = '1; mode=block'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         
-        # Content Security Policy for API responses
+        # Enhanced Content Security Policy
         if request.path.startswith('/api/'):
-            response['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none';"
+            # Strict CSP for API endpoints
+            csp_policy = (
+                "default-src 'none'; "
+                "script-src 'none'; "
+                "style-src 'none'; "
+                "img-src 'none'; "
+                "connect-src 'self'; "
+                "font-src 'none'; "
+                "object-src 'none'; "
+                "media-src 'none'; "
+                "frame-src 'none'; "
+                "frame-ancestors 'none'; "
+                "base-uri 'none'; "
+                "form-action 'none';"
+            )
+        else:
+            # More permissive CSP for web pages
+            csp_policy = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "connect-src 'self' ws: wss:; "
+                "font-src 'self' data:; "
+                "object-src 'none'; "
+                "media-src 'self'; "
+                "frame-src 'none'; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self';"
+            )
+        
+        response['Content-Security-Policy'] = csp_policy
+        
+        # Additional XSS protection headers
+        response['X-Permitted-Cross-Domain-Policies'] = 'none'
+        response['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        response['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response['Cross-Origin-Resource-Policy'] = 'same-origin'
         
         return response
 
