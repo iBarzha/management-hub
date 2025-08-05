@@ -65,3 +65,13 @@ class LogoutView(APIView):
                 {"error": "Invalid token"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+class CSRFTokenView(APIView):
+    permission_classes = (AllowAny,)
+    
+    def get(self, request):
+        """Get CSRF token for the current session."""
+        from django.middleware.csrf import get_token
+        token = get_token(request)
+        return Response({"csrfToken": token}, status=status.HTTP_200_OK)
