@@ -38,6 +38,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'users.middleware.SecurityHeadersMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'config.middleware.ETagMiddleware',
     'users.middleware.RateLimitMiddleware',
     'users.sql_protection.SQLInjectionProtectionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -49,6 +50,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'users.middleware.TokenValidationMiddleware',
     'users.middleware.UserActivityMiddleware',
+    'config.middleware.CacheMiddleware',
+    'config.db_pool.DatabaseConnectionMiddleware',
+    'config.monitoring.MiddlewarePerformanceMonitor',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -80,8 +84,42 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT'),
+        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),
+        'OPTIONS': {
+            'MAX_CONNS': config('DB_MAX_CONNS', default=20, cast=int),
+            'MIN_CONNS': config('DB_MIN_CONNS', default=5, cast=int),
+            'sslmode': 'prefer',
+            'connect_timeout': 10,
+            'options': '-c default_transaction_isolation=read_committed'
+        },
+        'ATOMIC_REQUESTS': True,
+        'AUTOCOMMIT': True,
     }
 }
+
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+        },
+        'KEY_PREFIX': 'management_hub',
+        'TIMEOUT': 300,
+    }
+}
+
+# Session configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -222,6 +260,38 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Schedule for automated tasks
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-websocket-data': {
+        'task': 'collaboration.tasks.cleanup_websocket_data',
+        'schedule': 300.0,  # Every 5 minutes
+    },
+    'websocket-health-check': {
+        'task': 'collaboration.tasks.websocket_health_check',
+        'schedule': 600.0,  # Every 10 minutes
+    },
+    'generate-websocket-metrics': {
+        'task': 'collaboration.tasks.generate_websocket_metrics',
+        'schedule': 900.0,  # Every 15 minutes
+    },
+    'optimize-message-history': {
+        'task': 'collaboration.tasks.optimize_message_history',
+        'schedule': 3600.0,  # Every hour
+    },
+    'send-task-deadline-reminders': {
+        'task': 'tasks.tasks.send_task_deadline_reminders',
+        'schedule': 86400.0,  # Daily
+    },
+    'cleanup-old-task-data': {
+        'task': 'tasks.tasks.cleanup_old_task_data',
+        'schedule': 604800.0,  # Weekly
+    },
+    'cleanup-expired-cache': {
+        'task': 'projects.tasks.cleanup_expired_cache',
+        'schedule': 7200.0,  # Every 2 hours
+    },
+}
 
 # Static files
 STATIC_URL = 'static/'
