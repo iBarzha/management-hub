@@ -2,6 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from .models import Team, Project, TeamMember, Sprint
 from .serializers import TeamSerializer, ProjectSerializer, SprintSerializer
 from users.permissions import (
@@ -9,15 +12,28 @@ from users.permissions import (
     IsProjectOwnerOrTeamOwner, IsOwnerOrReadOnly
 )
 from django.contrib.auth import get_user_model
+from config.cache_utils import CacheManager, cache_result
+from config.pagination import EnhancedPageNumberPagination, ProjectPagination
 
 User = get_user_model()
 
 class TeamViewSet(viewsets.ModelViewSet):
     serializer_class = TeamSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = EnhancedPageNumberPagination
 
     def get_queryset(self):
-        return Team.objects.filter(members__user=self.request.user).distinct()
+        cache_key = CacheManager.get_team_cache_key(self.request.user.id)
+        cached_teams = cache.get(cache_key)
+        
+        if cached_teams is None:
+            teams = Team.objects.filter(
+                members__user=self.request.user
+            ).select_related('created_by').prefetch_related('members__user').distinct()
+            cache.set(cache_key, teams, 300)  # Cache for 5 minutes
+            return teams
+        
+        return cached_teams
 
     def get_permissions(self):
         """Set permissions based on action."""
@@ -34,6 +50,8 @@ class TeamViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             role='owner'
         )
+        # Invalidate user's team cache
+        CacheManager.invalidate_user_cache(self.request.user.id)
 
     @action(detail=True, methods=['post'], permission_classes=[CanManageTeamMembers])
     def add_member(self, request, pk=None):
@@ -59,6 +77,9 @@ class TeamViewSet(viewsets.ModelViewSet):
         try:
             user = User.objects.get(id=user_id)
             TeamMember.objects.create(team=team, user=user, role=role)
+            # Invalidate cache for both users
+            CacheManager.invalidate_user_cache(request.user.id)
+            CacheManager.invalidate_user_cache(user.id)
             return Response({'status': 'member added'})
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -82,6 +103,9 @@ class TeamViewSet(viewsets.ModelViewSet):
                     )
             
             membership.delete()
+            # Invalidate cache for both users
+            CacheManager.invalidate_user_cache(request.user.id)
+            CacheManager.invalidate_user_cache(user.id)
             return Response({'status': 'member removed'})
         except (User.DoesNotExist, TeamMember.DoesNotExist):
             return Response({'error': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -90,9 +114,20 @@ class TeamViewSet(viewsets.ModelViewSet):
 class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = ProjectPagination
 
     def get_queryset(self):
-        return Project.objects.filter(team__members__user=self.request.user).distinct()
+        cache_key = CacheManager.get_projects_cache_key(self.request.user.id)
+        cached_projects = cache.get(cache_key)
+        
+        if cached_projects is None:
+            projects = Project.objects.filter(
+                team__members__user=self.request.user
+            ).select_related('team', 'created_by').prefetch_related('team__members').distinct()
+            cache.set(cache_key, projects, 300)  # Cache for 5 minutes
+            return projects
+        
+        return cached_projects
 
     def get_permissions(self):
         """Set permissions based on action."""
@@ -101,7 +136,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        project = serializer.save(created_by=self.request.user)
+        # Invalidate user's project cache
+        CacheManager.invalidate_user_cache(self.request.user.id)
+        return project
 
 
 class SprintViewSet(viewsets.ModelViewSet):
@@ -109,7 +147,9 @@ class SprintViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Sprint.objects.filter(project__team__members__user=self.request.user).distinct()
+        return Sprint.objects.filter(
+            project__team__members__user=self.request.user
+        ).select_related('project', 'project__team', 'created_by').distinct()
 
     def get_permissions(self):
         """Set permissions based on action."""
@@ -118,4 +158,7 @@ class SprintViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        sprint = serializer.save(created_by=self.request.user)
+        # Invalidate project-related cache
+        CacheManager.invalidate_project_cache(sprint.project.id)
+        return sprint
