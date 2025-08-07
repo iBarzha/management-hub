@@ -17,28 +17,11 @@ class EnhancedCSRFMiddleware(CsrfViewMiddleware):
     
     def process_view(self, request, callback, callback_args, callback_kwargs):
         """Process view with enhanced CSRF protection."""
-        # Skip CSRF for API endpoints using JWT authentication
+        # Skip CSRF for all API endpoints since we use JWT authentication
         if request.path.startswith('/api/'):
-            # Check if this is a JWT-authenticated API endpoint
-            auth_header = request.META.get('HTTP_AUTHORIZATION')
-            if auth_header and auth_header.startswith('Bearer '):
-                return None
-                
-            # For non-JWT API endpoints, still require CSRF
-            if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
-                # Check for CSRF token in headers
-                csrf_token = request.META.get('HTTP_X_CSRFTOKEN')
-                if not csrf_token:
-                    self.logger.warning(
-                        f"CSRF token missing for API request to {request.path} "
-                        f"from {self._get_client_ip(request)}"
-                    )
-                    return JsonResponse({
-                        'error': 'CSRF token missing',
-                        'detail': 'CSRF token required for this request.'
-                    }, status=status.HTTP_403_FORBIDDEN)
+            return None
         
-        # Use Django's default CSRF protection for other requests
+        # Use Django's default CSRF protection for non-API requests
         return super().process_view(request, callback, callback_args, callback_kwargs)
     
     def _get_client_ip(self, request):
@@ -75,11 +58,9 @@ class DoubleSubmitCookieMiddleware(MiddlewareMixin):
         if request.method in ('GET', 'HEAD', 'OPTIONS', 'TRACE'):
             return None
             
-        # Skip for API endpoints using JWT
+        # Skip for all API endpoints since we use JWT authentication
         if request.path.startswith('/api/'):
-            auth_header = request.META.get('HTTP_AUTHORIZATION')
-            if auth_header and auth_header.startswith('Bearer '):
-                return None
+            return None
         
         # Check double submit cookie
         csrf_cookie = request.COOKIES.get('csrftoken')
@@ -149,11 +130,9 @@ class OriginValidationMiddleware(MiddlewareMixin):
         if request.method not in ('POST', 'PUT', 'PATCH', 'DELETE'):
             return None
             
-        # Skip for API endpoints using JWT
+        # Skip for all API endpoints since we use JWT authentication
         if request.path.startswith('/api/'):
-            auth_header = request.META.get('HTTP_AUTHORIZATION')
-            if auth_header and auth_header.startswith('Bearer '):
-                return None
+            return None
         
         # Check Origin header
         origin = request.META.get('HTTP_ORIGIN')

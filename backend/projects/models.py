@@ -42,6 +42,7 @@ class TeamMember(models.Model):
     class Meta:
         db_table = 'team_members'
         unique_together = ['team', 'user']
+        ordering = ['-joined_at']
         indexes = [
             models.Index(fields=['team', 'user']),
             models.Index(fields=['user']),

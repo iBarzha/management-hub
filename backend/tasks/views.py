@@ -2,11 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.core.cache import cache
 from .models import Task, TaskComment, TaskAttachment
 from .serializers import TaskSerializer, TaskDetailSerializer, TaskCommentSerializer, TaskAttachmentSerializer
 from users.permissions import CanModifyTask, CanCreateTask, IsOwnerOrReadOnly, IsTeamMemberOrReadOnly
-from config.cache_utils import CacheManager
 from config.pagination import TaskPagination, CommentPagination
 
 
@@ -17,25 +15,19 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         project_id = self.request.query_params.get('project_id')
-        cache_key = CacheManager.get_tasks_cache_key(self.request.user.id, project_id)
-        cached_tasks = cache.get(cache_key)
         
-        if cached_tasks is None:
-            queryset = Task.objects.filter(
-                project__team__members__user=self.request.user
-            ).select_related(
-                'project', 'project__team', 'assignee', 'created_by', 'sprint'
-            ).prefetch_related('comments', 'attachments').distinct()
-            
-            if project_id:
-                queryset = queryset.filter(project_id=project_id)
-            
-            # Convert to list to cache it
-            tasks = list(queryset)
-            cache.set(cache_key, tasks, 300)  # Cache for 5 minutes
-            return tasks
+        # Build the base queryset
+        queryset = Task.objects.filter(
+            project__team__members__user=self.request.user
+        ).select_related(
+            'project', 'project__team', 'assignee', 'created_by', 'sprint'
+        ).prefetch_related('comments', 'attachments').distinct()
         
-        return cached_tasks
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        
+        # Return the queryset directly for pagination to work
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -52,9 +44,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         task = serializer.save(created_by=self.request.user)
-        # Invalidate task and project cache
-        CacheManager.invalidate_user_cache(self.request.user.id)
-        CacheManager.invalidate_project_cache(task.project.id)
         return task
 
     @action(detail=True, methods=['get', 'post'])

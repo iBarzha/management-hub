@@ -26,6 +26,7 @@ class GitHubIntegration(models.Model):
 
     class Meta:
         db_table = 'github_integrations'
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user.email} - {self.login}"
@@ -59,6 +60,7 @@ class GitHubRepository(models.Model):
     class Meta:
         db_table = 'github_repositories'
         unique_together = ['integration', 'github_id']
+        ordering = ['-updated_at']
 
     def __str__(self):
         return self.full_name
@@ -93,6 +95,7 @@ class GitHubIssue(models.Model):
     class Meta:
         db_table = 'github_issues'
         unique_together = ['repository', 'github_id']
+        ordering = ['-github_updated_at']
 
     def __str__(self):
         return f"#{self.number}: {self.title}"
@@ -148,6 +151,7 @@ class GitHubWebhook(models.Model):
     class Meta:
         db_table = 'github_webhooks'
         unique_together = ['repository', 'github_id']
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"Webhook for {self.repository.full_name}"
@@ -168,6 +172,7 @@ class SlackIntegration(models.Model):
     class Meta:
         db_table = 'slack_integrations'
         unique_together = ['user', 'team_id']
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user.email} - {self.team_name}"
@@ -188,6 +193,7 @@ class SlackChannel(models.Model):
     class Meta:
         db_table = 'slack_channels'
         unique_together = ['integration', 'channel_id']
+        ordering = ['channel_name']
 
     def __str__(self):
         return f"#{self.channel_name}"
@@ -234,6 +240,7 @@ class DiscordIntegration(models.Model):
     class Meta:
         db_table = 'discord_integrations'
         unique_together = ['user', 'guild_id']
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user.email} - {self.guild_name}"
@@ -265,6 +272,7 @@ class DiscordChannel(models.Model):
     class Meta:
         db_table = 'discord_channels'
         unique_together = ['integration', 'channel_id']
+        ordering = ['position', 'channel_name']
 
     def __str__(self):
         return f"#{self.channel_name}"
@@ -320,6 +328,7 @@ class DiscordCommand(models.Model):
     class Meta:
         db_table = 'discord_commands'
         unique_together = ['integration', 'command_name']
+        ordering = ['command_name']
 
     def __str__(self):
         return f"/{self.command_name}"
@@ -343,6 +352,7 @@ class DiscordRole(models.Model):
     class Meta:
         db_table = 'discord_roles'
         unique_together = ['integration', 'role_id']
+        ordering = ['-position', 'role_name']
 
     def __str__(self):
         return f"@{self.role_name}"
@@ -361,6 +371,7 @@ class GoogleCalendarIntegration(models.Model):
 
     class Meta:
         db_table = 'google_calendar_integrations'
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.user.email} - Google Calendar"

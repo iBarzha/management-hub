@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'users.csrf_protection.SameSiteMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'users.csrf_protection.EnhancedCSRFMiddleware',
     'users.csrf_protection.DoubleSubmitCookieMiddleware',
     'users.csrf_protection.OriginValidationMiddleware',
@@ -86,11 +87,8 @@ DATABASES = {
         'PORT': config('DB_PORT'),
         'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),
         'OPTIONS': {
-            'MAX_CONNS': config('DB_MAX_CONNS', default=20, cast=int),
-            'MIN_CONNS': config('DB_MIN_CONNS', default=5, cast=int),
             'sslmode': 'prefer',
             'connect_timeout': 10,
-            'options': '-c default_transaction_isolation=read_committed'
         },
         'ATOMIC_REQUESTS': True,
         'AUTOCOMMIT': True,
@@ -98,24 +96,40 @@ DATABASES = {
 }
 
 # Cache Configuration
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PARSER_CLASS': 'redis.connection.HiredisParser',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
+try:
+    import redis
+    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379/1'))
+    redis_client.ping()
+    # Redis is available
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
             },
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
-        },
-        'KEY_PREFIX': 'management_hub',
-        'TIMEOUT': 300,
+            'KEY_PREFIX': 'management_hub',
+            'TIMEOUT': 300,
+        }
     }
-}
+except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
+    # Fallback to local memory cache for development
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'management_hub_cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
+    }
 
 # Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
@@ -125,12 +139,21 @@ SESSION_CACHE_ALIAS = 'default'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
 }
 
 # JWT Settings
@@ -147,6 +170,17 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=False, cast=bool)
+
+# CSRF settings for API
+CSRF_TRUSTED_ORIGINS = [
+    config('FRONTEND_URL', default='http://localhost:3000'),
+]
+
+# Exempt API endpoints from CSRF (since we use JWT)
+CSRF_EXEMPT_URLS = [
+    r'^api/',
+    r'^/api/',
+]
 
 # Additional CORS security settings
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -244,14 +278,28 @@ LOGGING = {
 
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(config('REDIS_URL', default='redis://localhost:6379'))],
+
+# Try Redis for channels, fallback to in-memory
+try:
+    import redis
+    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379'))
+    redis_client.ping()
+    # Redis is available
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(config('REDIS_URL', default='redis://localhost:6379'))],
+            },
         },
-    },
-}
+    }
+except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
+    # Fallback to in-memory channel layer for development
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        },
+    }
 
 # Celery Configuration
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379')
