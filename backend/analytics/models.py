@@ -45,6 +45,7 @@ class ProjectMetrics(models.Model):
     
     class Meta:
         db_table = 'project_metrics'
+        ordering = ['-last_calculated']
         
     def __str__(self):
         return f"Metrics for {self.project.name}"
@@ -121,6 +122,7 @@ class TaskMetrics(models.Model):
     
     class Meta:
         db_table = 'task_metrics'
+        ordering = ['-updated_at']
         
     def __str__(self):
         return f"Metrics for {self.task.title}"
@@ -169,6 +171,7 @@ class TeamMemberMetrics(models.Model):
     class Meta:
         db_table = 'team_member_metrics'
         unique_together = ['user', 'project', 'period_start']
+        ordering = ['-period_start']
         
     def __str__(self):
         return f"{self.user.email} metrics for {self.project.name}"

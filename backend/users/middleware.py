@@ -14,11 +14,16 @@ class RateLimitMiddleware(MiddlewareMixin):
         
         # Rate limit configurations (requests per minute)
         self.rate_limits = {
-            '/api/auth/login/': 5,  # Login attempts
-            '/api/auth/register/': 3,  # Registration attempts
-            '/api/auth/token/refresh/': 10,  # Token refresh
-            'default': 100,  # Default for authenticated users
-            'anonymous': 20,  # Default for anonymous users
+            '/api/auth/login/': 10,  # Login attempts (increased)
+            '/api/auth/register/': 5,  # Registration attempts (increased)
+            '/api/auth/token/refresh/': 30,  # Token refresh (increased)
+            '/api/projects/': 300,  # Projects endpoint (high limit for frequent access)
+            '/api/tasks/': 300,  # Tasks endpoint (high limit for frequent access)
+            '/api/collaboration/presence/': 600,  # Presence updates (very high limit)
+            '/api/auth/profile/': 150,  # Profile endpoint
+            '/api/auth/preferences/': 150,  # Preferences endpoint
+            'default': 200,  # Default for authenticated users (doubled)
+            'anonymous': 50,  # Default for anonymous users (increased)
         }
         
         super().__init__(get_response)
@@ -40,10 +45,10 @@ class RateLimitMiddleware(MiddlewareMixin):
         
         # Determine rate limit for this endpoint
         path = request.path
-        rate_limit = self.get_rate_limit(path, request.user if hasattr(request, 'user') else None)
+        rate_limit, normalized_path = self.get_rate_limit_and_path(path, request.user if hasattr(request, 'user') else None)
         
-        # Check rate limit
-        cache_key = f"rate_limit_{identifier}_{path}"
+        # Check rate limit (use normalized path for cache key)
+        cache_key = f"rate_limit_{identifier}_{normalized_path}"
         current_requests = cache.get(cache_key, 0)
         
         if current_requests >= rate_limit:
@@ -66,17 +71,22 @@ class RateLimitMiddleware(MiddlewareMixin):
             ip = request.META.get('REMOTE_ADDR')
         return ip
     
-    def get_rate_limit(self, path, user):
-        """Get rate limit for specific path and user."""
-        # Specific endpoint limits
+    def get_rate_limit_and_path(self, path, user):
+        """Get rate limit and normalized path for specific path and user."""
+        # Check for exact matches first
         if path in self.rate_limits:
-            return self.rate_limits[path]
+            return self.rate_limits[path], path
+        
+        # Check for partial matches (e.g., /api/projects/ matches /api/projects/1/)
+        for rate_path, limit in self.rate_limits.items():
+            if rate_path not in ['default', 'anonymous'] and path.startswith(rate_path):
+                return limit, rate_path  # Use the rate_path as normalized path
         
         # Default limits based on authentication
         if user and user.is_authenticated:
-            return self.rate_limits['default']
+            return self.rate_limits['default'], 'default'
         else:
-            return self.rate_limits['anonymous']
+            return self.rate_limits['anonymous'], 'anonymous'
 
 
 class SecurityHeadersMiddleware(MiddlewareMixin):

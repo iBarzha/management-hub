@@ -16,6 +16,11 @@ class Team(models.Model):
     class Meta:
         db_table = 'teams'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_by']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -37,6 +42,13 @@ class TeamMember(models.Model):
     class Meta:
         db_table = 'team_members'
         unique_together = ['team', 'user']
+        ordering = ['-joined_at']
+        indexes = [
+            models.Index(fields=['team', 'user']),
+            models.Index(fields=['user']),
+            models.Index(fields=['role']),
+            models.Index(fields=['joined_at']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.team.name}"
@@ -69,6 +81,12 @@ class Sprint(models.Model):
     class Meta:
         db_table = 'sprints'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', 'status']),
+            models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f"{self.project.name} - {self.name}"
@@ -102,6 +120,14 @@ class Project(models.Model):
     class Meta:
         db_table = 'projects'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['team', 'status']),
+            models.Index(fields=['status']),
+            models.Index(fields=['start_date', 'end_date']),
+            models.Index(fields=['created_by']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['name']),
+        ]
 
     def __str__(self):
         return self.name

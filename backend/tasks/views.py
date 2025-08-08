@@ -5,14 +5,29 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Task, TaskComment, TaskAttachment
 from .serializers import TaskSerializer, TaskDetailSerializer, TaskCommentSerializer, TaskAttachmentSerializer
 from users.permissions import CanModifyTask, CanCreateTask, IsOwnerOrReadOnly, IsTeamMemberOrReadOnly
+from config.pagination import TaskPagination, CommentPagination
 
 
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = TaskPagination
 
     def get_queryset(self):
-        return Task.objects.filter(project__team__members__user=self.request.user).distinct()
+        project_id = self.request.query_params.get('project_id')
+        
+        # Build the base queryset
+        queryset = Task.objects.filter(
+            project__team__members__user=self.request.user
+        ).select_related(
+            'project', 'project__team', 'assignee', 'created_by', 'sprint'
+        ).prefetch_related('comments', 'attachments').distinct()
+        
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        
+        # Return the queryset directly for pagination to work
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -28,14 +43,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        task = serializer.save(created_by=self.request.user)
+        return task
 
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
         task = self.get_object()
         
         if request.method == 'GET':
-            comments = task.comments.all()
+            comments = task.comments.select_related('author').all()
             serializer = TaskCommentSerializer(comments, many=True)
             return Response(serializer.data)
         
@@ -51,7 +67,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         
         if request.method == 'GET':
-            attachments = task.attachments.all()
+            attachments = task.attachments.select_related('uploaded_by').all()
             serializer = TaskAttachmentSerializer(attachments, many=True)
             return Response(serializer.data)
         
@@ -66,9 +82,12 @@ class TaskViewSet(viewsets.ModelViewSet):
 class TaskCommentViewSet(viewsets.ModelViewSet):
     serializer_class = TaskCommentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = CommentPagination
 
     def get_queryset(self):
-        return TaskComment.objects.filter(task__project__team__members__user=self.request.user).distinct()
+        return TaskComment.objects.filter(
+            task__project__team__members__user=self.request.user
+        ).select_related('task', 'author').distinct()
 
     def get_permissions(self):
         """Set permissions based on action."""
@@ -85,7 +104,9 @@ class TaskAttachmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return TaskAttachment.objects.filter(task__project__team__members__user=self.request.user).distinct()
+        return TaskAttachment.objects.filter(
+            task__project__team__members__user=self.request.user
+        ).select_related('task', 'uploaded_by').distinct()
 
     def get_permissions(self):
         """Set permissions based on action."""

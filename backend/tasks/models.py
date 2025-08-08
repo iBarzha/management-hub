@@ -51,6 +51,17 @@ class Task(models.Model):
     class Meta:
         db_table = 'tasks'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', 'status']),
+            models.Index(fields=['assignee', 'status']),
+            models.Index(fields=['sprint', 'status']),
+            models.Index(fields=['status']),
+            models.Index(fields=['priority']),
+            models.Index(fields=['due_date']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['updated_at']),
+            models.Index(fields=['project', 'assignee']),
+        ]
 
     def __str__(self):
         return self.title
@@ -70,6 +81,11 @@ class TaskComment(models.Model):
     class Meta:
         db_table = 'task_comments'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['task', 'created_at']),
+            models.Index(fields=['author']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f"Comment on {self.task.title} by {self.author.username}"
@@ -91,6 +107,12 @@ class TaskAttachment(models.Model):
     class Meta:
         db_table = 'task_attachments'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['task']),
+            models.Index(fields=['uploaded_by']),
+            models.Index(fields=['file_type']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f"{self.file_name} - {self.task.title}"

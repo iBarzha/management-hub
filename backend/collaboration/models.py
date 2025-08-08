@@ -28,6 +28,7 @@ class RoomParticipant(models.Model):
 
     class Meta:
         unique_together = ['room', 'user']
+        ordering = ['-last_seen']
 
     def __str__(self):
         return f'{self.user.username} in {self.room}'
@@ -68,6 +69,9 @@ class UserPresence(models.Model):
     is_online = models.BooleanField(default=False)
     last_seen = models.DateTimeField(auto_now=True)
     current_project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-last_seen']
     
     def __str__(self):
         status = "Online" if self.is_online else "Offline"

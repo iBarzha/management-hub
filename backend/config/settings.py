@@ -38,17 +38,22 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'users.middleware.SecurityHeadersMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'config.middleware.ETagMiddleware',
     'users.middleware.RateLimitMiddleware',
     'users.sql_protection.SQLInjectionProtectionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'users.csrf_protection.SameSiteMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'users.csrf_protection.EnhancedCSRFMiddleware',
     'users.csrf_protection.DoubleSubmitCookieMiddleware',
     'users.csrf_protection.OriginValidationMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'users.middleware.TokenValidationMiddleware',
     'users.middleware.UserActivityMiddleware',
+    'config.middleware.CacheMiddleware',
+    'config.db_pool.DatabaseConnectionMiddleware',
+    'config.monitoring.MiddlewarePerformanceMonitor',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -80,19 +85,75 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT'),
+        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),
+        'OPTIONS': {
+            'sslmode': 'prefer',
+            'connect_timeout': 10,
+        },
+        'ATOMIC_REQUESTS': True,
+        'AUTOCOMMIT': True,
     }
 }
+
+# Cache Configuration
+try:
+    import redis
+    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379/1'))
+    redis_client.ping()
+    # Redis is available
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            },
+            'KEY_PREFIX': 'management_hub',
+            'TIMEOUT': 300,
+        }
+    }
+except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
+    # Fallback to local memory cache for development
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'management_hub_cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
+    }
+
+# Session configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
 }
 
 # JWT Settings
@@ -109,6 +170,17 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=False, cast=bool)
+
+# CSRF settings for API
+CSRF_TRUSTED_ORIGINS = [
+    config('FRONTEND_URL', default='http://localhost:3000'),
+]
+
+# Exempt API endpoints from CSRF (since we use JWT)
+CSRF_EXEMPT_URLS = [
+    r'^api/',
+    r'^/api/',
+]
 
 # Additional CORS security settings
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -206,14 +278,28 @@ LOGGING = {
 
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(config('REDIS_URL', default='redis://localhost:6379'))],
+
+# Try Redis for channels, fallback to in-memory
+try:
+    import redis
+    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379'))
+    redis_client.ping()
+    # Redis is available
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(config('REDIS_URL', default='redis://localhost:6379'))],
+            },
         },
-    },
-}
+    }
+except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
+    # Fallback to in-memory channel layer for development
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        },
+    }
 
 # Celery Configuration
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379')
@@ -222,6 +308,38 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Schedule for automated tasks
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-websocket-data': {
+        'task': 'collaboration.tasks.cleanup_websocket_data',
+        'schedule': 300.0,  # Every 5 minutes
+    },
+    'websocket-health-check': {
+        'task': 'collaboration.tasks.websocket_health_check',
+        'schedule': 600.0,  # Every 10 minutes
+    },
+    'generate-websocket-metrics': {
+        'task': 'collaboration.tasks.generate_websocket_metrics',
+        'schedule': 900.0,  # Every 15 minutes
+    },
+    'optimize-message-history': {
+        'task': 'collaboration.tasks.optimize_message_history',
+        'schedule': 3600.0,  # Every hour
+    },
+    'send-task-deadline-reminders': {
+        'task': 'tasks.tasks.send_task_deadline_reminders',
+        'schedule': 86400.0,  # Daily
+    },
+    'cleanup-old-task-data': {
+        'task': 'tasks.tasks.cleanup_old_task_data',
+        'schedule': 604800.0,  # Weekly
+    },
+    'cleanup-expired-cache': {
+        'task': 'projects.tasks.cleanup_expired_cache',
+        'schedule': 7200.0,  # Every 2 hours
+    },
+}
 
 # Static files
 STATIC_URL = 'static/'

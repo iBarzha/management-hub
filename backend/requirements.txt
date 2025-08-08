@@ -27,6 +27,7 @@ python-decouple==3.8
 pytz==2025.2
 PyYAML==6.0.2
 redis==5.0.1
+django-redis==5.4.0
 six==1.17.0
 sqlparse==0.5.3
 tzdata==2025.2
@@ -39,3 +40,7 @@ google-api-python-client==2.133.0
 google-auth==2.23.4
 google-auth-oauthlib==1.1.0
 google-auth-httplib2==0.2.0
+discord.py==2.3.2
+psutil==5.9.8
+bleach==6.1.0
+hiredis==2.3.2
