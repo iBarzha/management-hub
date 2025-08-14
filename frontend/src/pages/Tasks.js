@@ -369,7 +369,9 @@ const Tasks = () => {
         taskData.assignee_id = parseInt(data.assignee_id);
       }
 
-      await dispatch(createTask(taskData));
+      await dispatch(createTask(taskData)).unwrap();
+      // Refresh the tasks list to ensure consistency
+      await dispatch(fetchTasks());
       setOpenDialog(false);
       reset();
     } catch (err) {

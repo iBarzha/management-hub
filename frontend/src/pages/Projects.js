@@ -47,7 +47,9 @@ const Projects = () => {
       await dispatch(createProject({
         ...data,
         team_id: data.team_id ? parseInt(data.team_id) : null,
-      }));
+      })).unwrap();
+      // Refresh the projects list to ensure consistency
+      await dispatch(fetchProjects());
       setOpenDialog(false);
       reset();
     } catch (err) {

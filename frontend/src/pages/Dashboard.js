@@ -29,12 +29,16 @@ const Dashboard = () => {
     dispatch(fetchTasks());
   }, [dispatch]);
 
-  // Calculate stats from real data
-  const totalProjects = projects.length;
-  const activeTasks = tasks.filter(task => task.status === 'in_progress' || task.status === 'todo').length;
-  const totalMembers = teams.reduce((sum, team) => sum + (team.member_count || 0), 0);
-  const completedTasks = tasks.filter(task => task.status === 'done').length;
-  const activeProjects = projects.filter(project => project.status === 'active');
+  // Calculate stats from real data with defensive checks
+  const projectsArray = Array.isArray(projects) ? projects : [];
+  const tasksArray = Array.isArray(tasks) ? tasks : [];
+  const teamsArray = Array.isArray(teams) ? teams : [];
+  
+  const totalProjects = projectsArray.length;
+  const activeTasks = tasksArray.filter(task => task.status === 'in_progress' || task.status === 'todo').length;
+  const totalMembers = teamsArray.reduce((sum, team) => sum + (team.member_count || 0), 0);
+  const completedTasks = tasksArray.filter(task => task.status === 'done').length;
+  const activeProjects = projectsArray.filter(project => project.status === 'active');
 
   const stats = [
     {
@@ -154,7 +158,7 @@ const Dashboard = () => {
                   const recentActivities = [];
                   
                   // Add recently completed tasks
-                  const recentCompletedTasks = tasks
+                  const recentCompletedTasks = [...tasksArray]
                     .filter(task => task.status === 'done')
                     .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
                     .slice(0, 2);
@@ -173,7 +177,7 @@ const Dashboard = () => {
                   });
                   
                   // Add recently created projects
-                  const recentProjects = projects
+                  const recentProjects = [...projectsArray]
                     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                     .slice(0, 2);
                   
@@ -248,7 +252,7 @@ const Dashboard = () => {
                 {activeProjects.length > 0 ? (
                   activeProjects.slice(0, 3).map((project) => {
                     // Calculate progress based on tasks completion
-                    const projectTasks = tasks.filter(task => task.project?.id === project.id);
+                    const projectTasks = tasksArray.filter(task => task.project?.id === project.id);
                     const completedProjectTasks = projectTasks.filter(task => task.status === 'done');
                     const progress = projectTasks.length > 0 
                       ? Math.round((completedProjectTasks.length / projectTasks.length) * 100)
@@ -326,7 +330,7 @@ const Dashboard = () => {
               <Grid container spacing={2}>
                 {(() => {
                   // Get tasks with due dates that are upcoming
-                  const upcomingTasks = tasks
+                  const upcomingTasks = [...tasksArray]
                     .filter(task => task.due_date && task.status !== 'done')
                     .map(task => {
                       const dueDate = new Date(task.due_date);

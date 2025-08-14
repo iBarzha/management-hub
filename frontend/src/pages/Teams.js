@@ -26,7 +26,9 @@ const Teams = () => {
 
   const handleCreateTeam = async (data) => {
     try {
-      await dispatch(createTeam(data));
+      await dispatch(createTeam(data)).unwrap();
+      // Refresh the teams list to ensure consistency
+      await dispatch(fetchTeams());
       setOpenDialog(false);
       reset();
     } catch (err) {

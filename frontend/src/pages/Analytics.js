@@ -53,10 +53,14 @@ const Analytics = () => {
   const loadProjects = async () => {
     try {
       const response = await api.get('/projects/');
-      setProjects(response.data.results || response.data);
-      if (response.data.results?.length > 0 || response.data.length > 0) {
-        const firstProject = response.data.results?.[0] || response.data[0];
+      const projectsList = response.data.results || response.data || [];
+      setProjects(projectsList);
+      
+      if (projectsList.length > 0) {
+        const firstProject = projectsList[0];
         setSelectedProject(firstProject.id);
+      } else {
+        setError('No projects found. Please create a project first to view analytics.');
       }
     } catch (error) {
       console.error('Error loading projects:', error);
