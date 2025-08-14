@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.core.cache import cache
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.db.models import Count, Q
+from django.db import transaction
 from .models import Team, Project, TeamMember, Sprint
 from .serializers import TeamSerializer, ProjectSerializer, SprintSerializer
 from users.permissions import (
@@ -29,7 +31,13 @@ class TeamViewSet(viewsets.ModelViewSet):
         if cached_teams is None:
             teams = Team.objects.filter(
                 members__user=self.request.user
-            ).select_related('created_by').prefetch_related('members__user').distinct()
+            ).select_related('created_by').prefetch_related(
+                'members__user',
+                'projects'  # Prefetch projects to avoid extra queries
+            ).annotate(
+                member_count=Count('members', distinct=True),
+                project_count=Count('projects', distinct=True)
+            ).distinct()
             cache.set(cache_key, teams, 300)  # Cache for 5 minutes
             return teams
         
@@ -43,6 +51,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             self.permission_classes = [CanManageTeamMembers]
         return super().get_permissions()
 
+    @transaction.atomic
     def perform_create(self, serializer):
         team = serializer.save(created_by=self.request.user)
         TeamMember.objects.create(
@@ -50,10 +59,19 @@ class TeamViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             role='owner'
         )
-        # Invalidate user's team cache
-        CacheManager.invalidate_user_cache(self.request.user.id)
+        # Capture user ID for callback (request context will be lost)
+        user_id = self.request.user.id
+        # Schedule cache invalidation to happen after transaction commits
+        transaction.on_commit(lambda: self._invalidate_team_cache_for_user(user_id))
+
+    def _invalidate_team_cache_for_user(self, user_id):
+        """Helper method to invalidate team cache after transaction commits"""
+        cache_key = CacheManager.get_team_cache_key(user_id)
+        cache.delete(cache_key)
+        CacheManager.invalidate_user_cache(user_id)
 
     @action(detail=True, methods=['post'], permission_classes=[CanManageTeamMembers])
+    @transaction.atomic
     def add_member(self, request, pk=None):
         team = self.get_object()
         user_id = request.data.get('user_id')
@@ -85,6 +103,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['delete'], permission_classes=[CanManageTeamMembers])
+    @transaction.atomic
     def remove_member(self, request, pk=None):
         team = self.get_object()
         user_id = request.data.get('user_id')
@@ -123,7 +142,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if cached_projects is None:
             projects = Project.objects.filter(
                 team__members__user=self.request.user
-            ).select_related('team', 'created_by').prefetch_related('team__members').distinct()
+            ).select_related('team', 'created_by').prefetch_related(
+                'team__members__user',
+                'tasks',  # Prefetch tasks for counts
+                'sprints'  # Prefetch sprints for counts
+            ).annotate(
+                task_count=Count('tasks', distinct=True),
+                completed_task_count=Count('tasks', filter=Q(tasks__status='done'), distinct=True),
+                sprint_count=Count('sprints', distinct=True)
+            ).distinct()
             cache.set(cache_key, projects, 300)  # Cache for 5 minutes
             return projects
         
@@ -137,9 +164,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         project = serializer.save(created_by=self.request.user)
-        # Invalidate user's project cache
-        CacheManager.invalidate_user_cache(self.request.user.id)
+        # Capture user ID for callback (request context will be lost)
+        user_id = self.request.user.id
+        # Schedule cache invalidation to happen after transaction commits
+        transaction.on_commit(lambda: self._invalidate_project_cache_for_user(user_id))
         return project
+
+    def _invalidate_project_cache_for_user(self, user_id):
+        """Helper method to invalidate project cache after transaction commits"""
+        cache_key = CacheManager.get_projects_cache_key(user_id)
+        cache.delete(cache_key)
+        CacheManager.invalidate_user_cache(user_id)
 
 
 class SprintViewSet(viewsets.ModelViewSet):

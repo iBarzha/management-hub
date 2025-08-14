@@ -51,14 +51,26 @@ class ProjectMetricsDetailView(generics.RetrieveAPIView):
     
     def get_object(self):
         project_id = self.kwargs['project_id']
-        project = get_object_or_404(Project, id=project_id)
         
-        # Check if user has access to this project
-        if not project.team.members.filter(user=self.request.user).exists():
-            self.permission_denied(self.request)
-        
-        # Calculate fresh metrics
-        return MetricsCalculationService.calculate_project_metrics(project)
+        try:
+            project = get_object_or_404(Project, id=project_id)
+            
+            # Check if user has access to this project
+            if not project.team.members.filter(user=self.request.user).exists():
+                self.permission_denied(self.request)
+            
+            # Calculate fresh metrics
+            return MetricsCalculationService.calculate_project_metrics(project)
+            
+        except ValueError:
+            from django.http import Http404
+            raise Http404("Invalid project ID")
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('analytics')
+            logger.error(f'Error getting project metrics for project {project_id}: {str(e)}')
+            from django.http import Http404
+            raise Http404("Project metrics unavailable")
 
 
 class ProjectAnalyticsDashboardView(APIView):
@@ -66,31 +78,53 @@ class ProjectAnalyticsDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, project_id):
-        project = get_object_or_404(Project, id=project_id)
-        
-        # Check access
-        if not project.team.members.filter(user=request.user).exists():
-            return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
-        
-        # Date range parameters
-        days = int(request.query_params.get('days', 30))
-        end_date = timezone.now()
-        start_date = end_date - timedelta(days=days)
-        
-        # Check cache first
-        cached_data = AnalyticsCacheService.get_cached_metrics(project)
-        if cached_data and not request.query_params.get('refresh'):
-            return Response(cached_data)
-        
-        # Generate fresh data
-        dashboard_data = ReportService.generate_project_summary_data(
-            project, start_date, end_date
-        )
-        
-        # Cache the results
-        AnalyticsCacheService.cache_metrics(project, dashboard_data)
-        
-        return Response(dashboard_data)
+        try:
+            project = get_object_or_404(Project, id=project_id)
+            
+            # Check access
+            if not project.team.members.filter(user=request.user).exists():
+                return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Validate and parse date range parameters
+            try:
+                days = int(request.query_params.get('days', 30))
+                if days < 1 or days > 365:
+                    days = 30  # Default to 30 if invalid
+            except ValueError:
+                days = 30
+                
+            end_date = timezone.now()
+            start_date = end_date - timedelta(days=days)
+            
+            # Check cache first
+            cached_data = AnalyticsCacheService.get_cached_metrics(project)
+            if cached_data and not request.query_params.get('refresh'):
+                return Response(cached_data)
+            
+            # Generate fresh data
+            dashboard_data = ReportService.generate_project_summary_data(
+                project, start_date, end_date
+            )
+            
+            # Cache the results
+            AnalyticsCacheService.cache_metrics(project, dashboard_data)
+            
+            return Response(dashboard_data)
+            
+        except ValueError as e:
+            return Response(
+                {'error': 'Invalid project ID or parameters'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('analytics')
+            logger.error(f'Dashboard error for project {project_id}: {str(e)}', exc_info=True)
+            
+            return Response(
+                {'error': 'Unable to load dashboard data'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class BurndownChartDataView(APIView):
@@ -362,13 +396,45 @@ class GenerateReportView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        except Exception as e:
+        except ValueError as e:
             report_generation.status = 'failed'
-            report_generation.error_message = str(e)
+            report_generation.error_message = f'Invalid data: {str(e)}'
             report_generation.save()
             
             return Response(
-                {'error': 'Failed to generate report'}, 
+                {'error': 'Invalid data provided for report generation'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except PermissionError as e:
+            report_generation.status = 'failed'
+            report_generation.error_message = f'Permission error: {str(e)}'
+            report_generation.save()
+            
+            return Response(
+                {'error': 'Permission denied for report generation'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except FileNotFoundError as e:
+            report_generation.status = 'failed'
+            report_generation.error_message = f'File not found: {str(e)}'
+            report_generation.save()
+            
+            return Response(
+                {'error': 'Required file not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            # Log the detailed error for debugging
+            import logging
+            logger = logging.getLogger('analytics')
+            logger.error(f'Report generation failed for project {project_id}: {str(e)}', exc_info=True)
+            
+            report_generation.status = 'failed'
+            report_generation.error_message = 'Unexpected error occurred'
+            report_generation.save()
+            
+            return Response(
+                {'error': 'Failed to generate report due to internal error'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

@@ -3,10 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .models import ChatMessage, Notification, UserPresence
 from .serializers import ChatMessageSerializer, NotificationSerializer, UserPresenceSerializer
+from users.validators import SQLInjectionValidator
 
 
 class ChatMessageViewSet(viewsets.ModelViewSet):
@@ -16,8 +18,34 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         room = self.request.query_params.get('room')
         if room:
+            # Validate room parameter against SQL injection
+            try:
+                SQLInjectionValidator.validate_input(room)
+            except Exception:
+                return ChatMessage.objects.none()
+            
+            # Additional validation for room format
+            if not self._is_valid_room_name(room):
+                return ChatMessage.objects.none()
+                
             return ChatMessage.objects.filter(room=room)
         return ChatMessage.objects.none()
+    
+    def _is_valid_room_name(self, room):
+        """Validate room name format and length."""
+        # Room names should be alphanumeric with some special chars
+        import re
+        if not re.match(r'^[a-zA-Z0-9_\-\.]{1,100}$', room):
+            return False
+        
+        # Check for suspicious patterns
+        suspicious_patterns = ['..', '//', '\\\\', 'admin', 'root', 'system']
+        room_lower = room.lower()
+        for pattern in suspicious_patterns:
+            if pattern in room_lower:
+                return False
+        
+        return True
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -75,10 +103,18 @@ class UserPresenceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+@transaction.atomic
 def send_notification(user_id, title, message, notification_type='info', project_id=None, task_id=None):
     """
     Utility function to send real-time notifications
     """
+    # Validate inputs
+    try:
+        SQLInjectionValidator.validate_input(title)
+        SQLInjectionValidator.validate_input(message)
+    except Exception:
+        return None  # Invalid input, don't send notification
+    
     # Create notification in database
     notification = Notification.objects.create(
         user_id=user_id,
@@ -90,16 +126,20 @@ def send_notification(user_id, title, message, notification_type='info', project
     )
     
     # Send real-time notification via WebSocket
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        f'notifications_{user_id}',
-        {
-            'type': 'notification',
-            'title': title,
-            'message': message,
-            'notification_type': notification_type,
-            'timestamp': notification.created_at.isoformat()
-        }
-    )
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{user_id}',
+            {
+                'type': 'notification',
+                'title': title,
+                'message': message,
+                'notification_type': notification_type,
+                'timestamp': notification.created_at.isoformat()
+            }
+        )
+    except Exception:
+        # WebSocket sending failed, but notification is still saved in DB
+        pass
     
     return notification
