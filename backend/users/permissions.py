@@ -108,14 +108,16 @@ class CanCreateTask(BaseTeamPermission):
     """Permission for task creation."""
     
     def has_permission(self, request, view):
-        if request.method == 'POST' and 'project' in request.data:
-            try:
-                project = Project.objects.get(id=request.data['project'])
-                team = project.team
-                # Members and above can create tasks
-                return self.has_team_permission(request, view, team, ['owner', 'admin', 'member'])
-            except Project.DoesNotExist:
-                return False
+        if request.method == 'POST':
+            project_id = request.data.get('project_id') or request.data.get('project')
+            if project_id:
+                try:
+                    project = Project.objects.get(id=project_id)
+                    team = project.team
+                    # Members and above can create tasks
+                    return self.has_team_permission(request, view, team, ['owner', 'admin', 'member'])
+                except (Project.DoesNotExist, ValueError):
+                    return False
         return True
 
 

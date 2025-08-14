@@ -35,7 +35,8 @@ class TeamSerializer(CustomValidationMixin, serializers.ModelSerializer):
         return self.validate_text_field(value, 'description', max_length=1000)
 
     def get_member_count(self, obj):
-        return obj.members.count()
+        # Use annotated value if available, otherwise count
+        return getattr(obj, 'member_count', obj.members.count())
 
 
 class ProjectSerializer(CustomValidationMixin, serializers.ModelSerializer):
@@ -99,4 +100,5 @@ class SprintSerializer(CustomValidationMixin, serializers.ModelSerializer):
         return self.validate_html_field(value, 'goal', max_length=1000)
 
     def get_task_count(self, obj):
-        return obj.tasks.count()
+        # Use annotated value if available, otherwise count
+        return getattr(obj, 'task_count', obj.tasks.count())

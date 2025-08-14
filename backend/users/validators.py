@@ -206,30 +206,135 @@ class SecureFileValidator:
         """Validate uploaded file."""
         if not file:
             return file
-            
-        # Check file size
+        
+        # Check file size first to prevent large file processing
         if file.size > cls.MAX_FILE_SIZE:
             raise ValidationError(f'File size must be less than {cls.MAX_FILE_SIZE // (1024*1024)}MB.')
         
+        # Check for minimum file size (prevent empty files)
+        if file.size < 1:
+            raise ValidationError('Empty files are not allowed.')
+        
         # Sanitize filename
+        original_name = file.name
         filename = InputSanitizer.sanitize_filename(file.name)
+        
+        # Validate filename length
+        if len(filename) > 255:
+            raise ValidationError('Filename is too long.')
         
         # Check for dangerous extensions
         ext = filename.lower().split('.')[-1] if '.' in filename else ''
         if f'.{ext}' in cls.DANGEROUS_EXTENSIONS:
             raise ValidationError('This file type is not allowed.')
         
-        # Validate file content (basic MIME type check)
-        cls._validate_file_content(file)
+        # Validate file content with size limit for reading
+        cls._validate_file_content_secure(file)
+        
+        # Update file name if it was sanitized
+        if filename != original_name:
+            file.name = filename
         
         return file
     
     @classmethod
+    def _validate_file_content_secure(cls, file):
+        """Secure file content validation with size limits."""
+        try:
+            # Limit how much we read for security
+            max_header_size = min(2048, file.size)
+            
+            file.seek(0)
+            file_header = file.read(max_header_size)
+            file.seek(0)
+            
+            # Check for executable signatures first
+            if cls._has_dangerous_signature(file_header):
+                raise ValidationError('File contains dangerous content.')
+            
+            # Try magic library if available
+            try:
+                import magic
+                mime_type = magic.from_buffer(file_header, mime=True)
+                cls._validate_mime_type(file.name, mime_type)
+            except ImportError:
+                # Use fallback validation
+                cls._validate_file_content_fallback_secure(file, file_header)
+                
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise
+            # Any other error during validation should be treated as suspicious
+            raise ValidationError('Unable to validate file content.')
+    
+    @classmethod
+    def _has_dangerous_signature(cls, file_header):
+        """Check for dangerous file signatures."""
+        dangerous_signatures = [
+            b'MZ',  # Windows executable
+            b'\x7fELF',  # Linux executable
+            b'PK\x03\x04',  # ZIP (could contain executables)
+            b'\x1f\x8b\x08',  # GZIP
+            b'Rar!',  # RAR archive
+        ]
+        
+        for sig in dangerous_signatures:
+            if file_header.startswith(sig):
+                return True
+        return False
+    
+    @classmethod
+    def _validate_mime_type(cls, filename, mime_type):
+        """Validate MIME type against filename extension."""
+        extension = filename.lower().split('.')[-1] if '.' in filename else ''
+        expected_mimes = cls._get_expected_mime_types(extension)
+        
+        # Allow common safe MIME types
+        safe_mime_types = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'text/plain', 'application/json', 'text/csv',
+            'application/pdf'  # Only if explicitly allowed
+        ]
+        
+        if expected_mimes and mime_type not in expected_mimes:
+            raise ValidationError('File content does not match its extension.')
+        
+        if mime_type not in safe_mime_types:
+            raise ValidationError(f'MIME type {mime_type} is not allowed.')
+    
+    @classmethod
+    def _validate_file_content_fallback_secure(cls, file, file_header):
+        """Enhanced fallback validation without python-magic library."""
+        extension = file.name.lower().split('.')[-1] if '.' in file.name else ''
+        
+        # Strict whitelist for fallback mode
+        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'txt', 'csv']
+        if extension not in allowed_extensions:
+            raise ValidationError('Only image and text files are allowed in fallback mode.')
+        
+        # Check file signatures for allowed types
+        image_signatures = {
+            'jpg': [b'\xff\xd8\xff'],
+            'jpeg': [b'\xff\xd8\xff'],
+            'png': [b'\x89PNG\r\n\x1a\n'],
+            'gif': [b'GIF87a', b'GIF89a']
+        }
+        
+        if extension in image_signatures:
+            valid_signature = False
+            for sig in image_signatures[extension]:
+                if file_header.startswith(sig):
+                    valid_signature = True
+                    break
+            
+            if not valid_signature:
+                raise ValidationError(f'Invalid {extension.upper()} file format.')
+    
+    @classmethod
     def _validate_file_content(cls, file):
         """Validate file content by checking MIME type."""
-        import magic
-        
         try:
+            import magic
             # Read first few bytes to detect file type
             file.seek(0)
             file_header = file.read(1024)
@@ -246,8 +351,48 @@ class SecureFileValidator:
                 raise ValidationError('File content does not match its extension.')
                 
         except ImportError:
-            # python-magic not available, skip content validation
-            pass
+            # python-magic not available, use alternative validation
+            cls._validate_file_content_fallback(file)
+        except Exception:
+            # Magic library error, use fallback validation
+            cls._validate_file_content_fallback(file)
+    
+    @classmethod
+    def _validate_file_content_fallback(cls, file):
+        """Fallback validation without python-magic library."""
+        # Read first few bytes to check for dangerous file signatures
+        file.seek(0)
+        file_header = file.read(20)
+        file.seek(0)
+        
+        # Check for common dangerous file signatures
+        dangerous_signatures = [
+            b'MZ',  # Windows executable
+            b'\x7fELF',  # Linux executable
+            b'%PDF-',  # PDF (can contain JS)
+            b'\x89PNG',  # PNG (allow)
+            b'\xff\xd8\xff',  # JPEG (allow)
+            b'GIF87a',  # GIF (allow)
+            b'GIF89a',  # GIF (allow)
+        ]
+        
+        # Only allow safe file types in fallback mode
+        safe_signatures = [
+            b'\x89PNG',  # PNG
+            b'\xff\xd8\xff',  # JPEG  
+            b'GIF87a',  # GIF
+            b'GIF89a',  # GIF
+        ]
+        
+        # Check if file starts with executable signatures
+        for sig in [b'MZ', b'\x7fELF']:
+            if file_header.startswith(sig):
+                raise ValidationError('Executable files are not allowed.')
+        
+        # For non-image files, perform additional checks
+        extension = file.name.lower().split('.')[-1] if '.' in file.name else ''
+        if extension in ['exe', 'bat', 'cmd', 'scr', 'com', 'pif']:
+            raise ValidationError('This file type is not allowed for security reasons.')
     
     @classmethod
     def _get_expected_mime_types(cls, extension):

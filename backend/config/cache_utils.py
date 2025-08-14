@@ -79,27 +79,62 @@ class CacheManager:
     @staticmethod
     def invalidate_user_cache(user_id):
         """Invalidate all cache entries for a user"""
-        patterns = [
-            f"user:{user_id}:*",
-            f"projects:user:{user_id}*",
-            f"tasks:user:{user_id}*",
-            f"teams:user:{user_id}*"
-        ]
-        
-        for pattern in patterns:
-            keys = cache.keys(pattern)
-            if keys:
-                cache.delete_many(keys)
+        # Try Redis-specific pattern deletion first
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            
+            patterns = [
+                f"user:{user_id}:*",
+                f"projects:user:{user_id}*",
+                f"tasks:user:{user_id}*",
+                f"teams:user:{user_id}*"
+            ]
+            
+            for pattern in patterns:
+                keys = redis_conn.keys(pattern)
+                if keys:
+                    redis_conn.delete(*keys)
+                    
+        except (ImportError, Exception):
+            # Fallback to individual key deletion for non-Redis backends
+            specific_keys = [
+                f"user:{user_id}:profile",
+                f"user:{user_id}:preferences",
+                f"projects:user:{user_id}",
+                f"tasks:user:{user_id}",
+                f"teams:user:{user_id}"
+            ]
+            cache.delete_many(specific_keys)
     
     @staticmethod
     def invalidate_project_cache(project_id):
         """Invalidate cache entries related to a project"""
-        patterns = [
-            f"*:project:{project_id}*",
-            f"tasks:*:project:{project_id}*"
-        ]
-        
-        for pattern in patterns:
-            keys = cache.keys(pattern)
-            if keys:
-                cache.delete_many(keys)
+        # Try Redis-specific pattern deletion first
+        try:
+            from django_redis import get_redis_connection
+            redis_conn = get_redis_connection("default")
+            
+            patterns = [
+                f"*:project:{project_id}*",
+                f"tasks:*:project:{project_id}*",
+                f"analytics_dashboard:{project_id}",
+                f"burndown_data:{project_id}:*",
+                f"project_metrics_{project_id}"
+            ]
+            
+            for pattern in patterns:
+                keys = redis_conn.keys(pattern)
+                if keys:
+                    redis_conn.delete(*keys)
+                    
+        except (ImportError, Exception):
+            # Fallback to specific key deletion
+            specific_keys = [
+                f"analytics_dashboard:{project_id}",
+                f"project_metrics_{project_id}",
+                f"burndown_data_{project_id}",
+                f"velocity_data_{project_id}",
+                f"team_performance_{project_id}"
+            ]
+            cache.delete_many(specific_keys)
