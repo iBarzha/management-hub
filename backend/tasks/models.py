@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from projects.models import Project
 
 
 class Task(models.Model):
@@ -20,7 +19,7 @@ class Task(models.Model):
 
     title = models.CharField(max_length=200)
     description = models.TextField()
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='tasks')
     sprint = models.ForeignKey(
         'projects.Sprint', 
         on_delete=models.SET_NULL, 

@@ -2,16 +2,13 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import datetime, timedelta
-from projects.models import Project
-from tasks.models import Task
-from projects.models import TeamMember
 
 User = get_user_model()
 
 
 class ProjectMetrics(models.Model):
     """Store calculated project metrics for performance"""
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='metrics')
+    project = models.OneToOneField('projects.Project', on_delete=models.CASCADE, related_name='metrics')
     
     # Task metrics
     total_tasks = models.IntegerField(default=0)
@@ -53,7 +50,7 @@ class ProjectMetrics(models.Model):
 
 class SprintMetrics(models.Model):
     """Track sprint-specific metrics for velocity and burndown charts"""
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sprint_metrics')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='sprint_metrics')
     sprint_name = models.CharField(max_length=200)
     sprint_number = models.IntegerField()
     
@@ -92,7 +89,7 @@ class SprintMetrics(models.Model):
 
 class TaskMetrics(models.Model):
     """Individual task performance metrics"""
-    task = models.OneToOneField(Task, on_delete=models.CASCADE, related_name='metrics')
+    task = models.OneToOneField('tasks.Task', on_delete=models.CASCADE, related_name='metrics')
     
     # Time tracking
     estimated_hours = models.FloatField(default=0.0)
@@ -131,7 +128,7 @@ class TaskMetrics(models.Model):
 class TeamMemberMetrics(models.Model):
     """Individual team member performance metrics"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_metrics')
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='member_metrics')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='member_metrics')
     
     # Task completion metrics
     tasks_assigned = models.IntegerField(default=0)
@@ -185,7 +182,7 @@ class AnalyticsSnapshot(models.Model):
         ('monthly', 'Monthly'),
     ]
     
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='analytics_snapshots')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='analytics_snapshots')
     snapshot_type = models.CharField(max_length=10, choices=SNAPSHOT_TYPES)
     snapshot_date = models.DateTimeField()
     
@@ -212,7 +209,7 @@ class AnalyticsSnapshot(models.Model):
 
 class BurndownData(models.Model):
     """Daily burndown chart data points"""
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='burndown_data')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='burndown_data')
     sprint_metrics = models.ForeignKey(SprintMetrics, on_delete=models.CASCADE, related_name='daily_burndown', null=True, blank=True)
     
     date = models.DateField()
@@ -269,7 +266,7 @@ class ReportGeneration(models.Model):
         ('failed', 'Failed'),
     ]
     
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='generated_reports')
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, related_name='generated_reports')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='requested_reports')
     
     report_type = models.CharField(max_length=20, choices=REPORT_TYPES)

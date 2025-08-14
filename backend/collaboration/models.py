@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from projects.models import Project
 
 User = get_user_model()
 
@@ -54,7 +53,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     # Optional foreign keys for context
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
+    project = models.ForeignKey('projects.Project', on_delete=models.CASCADE, null=True, blank=True)
     task = models.ForeignKey('tasks.Task', on_delete=models.CASCADE, null=True, blank=True)
     
     class Meta:
@@ -68,7 +67,7 @@ class UserPresence(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     is_online = models.BooleanField(default=False)
     last_seen = models.DateTimeField(auto_now=True)
-    current_project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True)
+    current_project = models.ForeignKey('projects.Project', on_delete=models.SET_NULL, null=True, blank=True)
     
     class Meta:
         ordering = ['-last_seen']
