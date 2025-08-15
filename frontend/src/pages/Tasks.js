@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {Box, Typography, Card, CardContent, Button, Chip, CircularProgress, Dialog,
   DialogTitle, DialogContent, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem} from '@mui/material';
 import { 
-  Add, Assignment, DragIndicator, MoreVert, Person, Schedule,
+  Add, Assignment, DragIndicator, Person, Schedule,
   Flag, CheckCircle, PlayArrow, Visibility, FilterList
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,6 +10,7 @@ import { fetchTasks, createTask, updateTask } from '../store/slices/taskSlice';
 import { fetchProjects } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import UserPresence from '../components/UserPresence';
 import webSocketService from '../services/websocket';
 import api from '../services/api';
@@ -124,8 +125,8 @@ const DroppableColumn = ({ column, tasks, children }) => {
   );
 };
 
-// Draggable Task Card Component
-const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatusChange, successAnimations }) => {
+// Draggable Task Card Component  
+const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatusChange, successAnimations, onViewDetails }) => {
   const {
     attributes,
     listeners,
@@ -214,9 +215,8 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
               {task.project?.name}
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <DragIndicator sx={{ color: 'text.secondary', fontSize: 16 }} />
-            <MoreVert sx={{ color: 'text.secondary', fontSize: 16 }} />
           </Box>
         </Box>
         
@@ -261,15 +261,40 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
                 Unassigned
               </Typography>
             )}
+            {task.due_date && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 2 }}>
+                <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(task.due_date).toLocaleDateString()}
+                </Typography>
+              </Box>
+            )}
           </Box>
-          {task.due_date && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
-              <Typography variant="caption" color="text.secondary">
-                {new Date(task.due_date).toLocaleDateString()}
-              </Typography>
-            </Box>
-          )}
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<Visibility />}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(task);
+            }}
+            sx={{
+              borderRadius: 2,
+              fontSize: '0.7rem',
+              px: 1.5,
+              py: 0.5,
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              boxShadow: '0 3px 10px rgba(240, 147, 251, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #e084ec 0%, #e6495d 100%)',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 15px rgba(240, 147, 251, 0.4)',
+              },
+              transition: 'all 0.2s ease-in-out'
+            }}
+          >
+            Details
+          </Button>
         </Box>
       </CardContent>
     </Card>
@@ -278,6 +303,7 @@ const DraggableTaskCard = ({ task, getPriorityColor, statusColumns, handleStatus
 
 const Tasks = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { tasks, isLoading, error } = useSelector((state) => state.tasks);
   const { projects } = useSelector((state) => state.projects);
   const { teams } = useSelector((state) => state.teams);
@@ -370,13 +396,16 @@ const Tasks = () => {
       }
 
       await dispatch(createTask(taskData)).unwrap();
-      // Refresh the tasks list to ensure consistency
       await dispatch(fetchTasks());
       setOpenDialog(false);
       reset();
     } catch (err) {
       console.error('Failed to create task:', err);
     }
+  };
+
+  const handleViewTaskDetails = (task) => {
+    navigate(`/tasks/${task.id}`);
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
@@ -675,6 +704,7 @@ const Tasks = () => {
                         statusColumns={statusColumns}
                         handleStatusChange={handleStatusChange}
                         successAnimations={successAnimations}
+                        onViewDetails={handleViewTaskDetails}
                       />
                     ))
                   )}
@@ -913,6 +943,7 @@ const Tasks = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
       </Box>
     </DndContext>
   );
