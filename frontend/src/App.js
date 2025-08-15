@@ -18,6 +18,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import Teams from './pages/Teams';
 import TeamDetail from './pages/TeamDetail';
 import Tasks from './pages/Tasks';
+import TaskDetail from './pages/TaskDetail';
 import ChatPage from './pages/Chat';
 import Integrations from './pages/Integrations';
 import Analytics from './pages/Analytics';
@@ -151,6 +152,7 @@ function App() {
             <Route path="teams" element={<Teams />} />
             <Route path="teams/:id" element={<TeamDetail />} />
             <Route path="tasks" element={<Tasks />} />
+            <Route path="tasks/:id" element={<TaskDetail />} />
             <Route path="chat" element={<ChatPage />} />
             <Route path="integrations" element={<Integrations />} />
             <Route path="integrations/github/callback" element={<Integrations />} />

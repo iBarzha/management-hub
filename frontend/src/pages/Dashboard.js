@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Grid, Typography, Box, Card, CardContent, LinearProgress, Avatar,
-  Chip, IconButton, Button, Stack, Menu, MenuItem
+  Chip, Button, Stack
 } from '@mui/material';
 import {
   People, Work, Assignment, CheckCircle, TrendingUp,
-  Add, MoreVert, CalendarToday, Schedule
+  Add, CalendarToday, Schedule
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -20,8 +20,6 @@ const Dashboard = () => {
   const { projects } = useSelector((state) => state.projects);
   const { teams } = useSelector((state) => state.teams);
   const { tasks } = useSelector((state) => state.tasks);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedCard, setSelectedCard] = useState('');
 
   useEffect(() => {
     dispatch(fetchProjects());
@@ -108,16 +106,6 @@ const Dashboard = () => {
                   >
                     {stat.icon}
                   </Box>
-                  <IconButton 
-                    size="small" 
-                    sx={{ color: 'text.secondary' }}
-                    onClick={(e) => {
-                      setAnchorEl(e.currentTarget);
-                      setSelectedCard(stat.title);
-                    }}
-                  >
-                    <MoreVert fontSize="small" />
-                  </IconButton>
                 </Box>
                 <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
                   {stat.value}
@@ -238,15 +226,17 @@ const Dashboard = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Project Progress
                 </Typography>
-                <IconButton 
+                <Button
+                  variant="outlined"
                   size="small"
-                  onClick={(e) => {
-                    setAnchorEl(e.currentTarget);
-                    setSelectedCard('Project Progress');
+                  onClick={() => navigate('/projects')}
+                  sx={{
+                    borderRadius: 1.5,
+                    fontSize: '0.75rem'
                   }}
                 >
-                  <MoreVert fontSize="small" />
-                </IconButton>
+                  View All
+                </Button>
               </Box>
               <Stack spacing={3}>
                 {activeProjects.length > 0 ? (
@@ -261,15 +251,41 @@ const Dashboard = () => {
                     return (
                       <Box key={project.id}>
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            {project.name}
-                          </Typography>
-                          <Chip 
-                            label={`${progress}%`} 
-                            size="small" 
-                            color={progress >= 80 ? 'success' : progress >= 50 ? 'warning' : 'default'}
-                            sx={{ fontWeight: 600 }}
-                          />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {project.name}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip 
+                              label={`${progress}%`} 
+                              size="small" 
+                              color={progress >= 80 ? 'success' : progress >= 50 ? 'warning' : 'default'}
+                              sx={{ fontWeight: 600 }}
+                            />
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => navigate(`/projects/${project.id}`)}
+                              sx={{
+                                minWidth: 'auto',
+                                borderRadius: 1.5,
+                                fontSize: '0.7rem',
+                                px: 1.5,
+                                py: 0.5,
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                                },
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                            >
+                              Details
+                            </Button>
+                          </Box>
                         </Box>
                         <LinearProgress
                           variant="determinate"
@@ -428,27 +444,6 @@ const Dashboard = () => {
         </Grid>
       </Grid>
       
-      {/* Context Menu for card actions */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuItem onClick={() => {
-          console.log(`View details for ${selectedCard}`);
-          setAnchorEl(null);
-        }}>View Details</MenuItem>
-        <MenuItem onClick={() => {
-          console.log(`Export ${selectedCard}`);
-          setAnchorEl(null);
-        }}>Export Data</MenuItem>
-        <MenuItem onClick={() => {
-          console.log(`Configure ${selectedCard}`);
-          setAnchorEl(null);
-        }}>Configure</MenuItem>
-      </Menu>
     </Box>
   );
 };
