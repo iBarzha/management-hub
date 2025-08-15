@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Card, CardContent, Button, Chip, Avatar, AvatarGroup,
-  Tab, Tabs, Grid, LinearProgress, IconButton, Menu, MenuItem, Dialog,
+  Box, Typography, Card, CardContent, Button, Chip,
+  Tab, Tabs, Grid, LinearProgress, IconButton, Dialog,
   DialogTitle, DialogContent, DialogActions, TextField, FormControl,
   InputLabel, Select, MenuItem as SelectMenuItem
 } from '@mui/material';
 import {
-  ArrowBack, Edit, Delete, MoreVert, People, Assignment,
-  CalendarToday, Folder, Add, CheckCircle, Schedule
+  ArrowBack, Edit, Delete, People, Assignment,
+  CalendarToday, Folder, Add, CheckCircle, Schedule, Archive, Restore
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchProjects } from '../store/slices/projectSlice';
+import { fetchProjects, updateProject, deleteProject } from '../store/slices/projectSlice';
 import { fetchTasks } from '../store/slices/taskSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
 import { useForm } from 'react-hook-form';
@@ -25,10 +25,10 @@ const ProjectDetail = () => {
   const { teams } = useSelector((state) => state.teams);
   
   const [tabValue, setTabValue] = useState(0);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [editDialog, setEditDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
   
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
   
   const project = projects.find(p => p.id === parseInt(id));
   const projectTasks = tasks.filter(task => task.project?.id === parseInt(id));
@@ -69,11 +69,37 @@ const ProjectDetail = () => {
 
   const handleUpdateProject = async (data) => {
     try {
-      console.log('Updating project:', data);
-      // Here you would dispatch an update action
+      await dispatch(updateProject({
+        id: project.id,
+        ...data,
+        team_id: data.team_id ? parseInt(data.team_id) : null,
+      })).unwrap();
+      await dispatch(fetchProjects());
       setEditDialog(false);
     } catch (err) {
       console.error('Failed to update project:', err);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    try {
+      await dispatch(deleteProject(project.id)).unwrap();
+      setDeleteDialog(false);
+      navigate('/projects');
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    }
+  };
+
+  const handleArchiveProject = async () => {
+    try {
+      await dispatch(updateProject({
+        id: project.id,
+        status: project.status === 'archived' ? 'active' : 'archived'
+      })).unwrap();
+      await dispatch(fetchProjects());
+    } catch (err) {
+      console.error('Failed to archive/restore project:', err);
     }
   };
 
@@ -106,12 +132,62 @@ const ProjectDetail = () => {
               {project.description || 'No description provided'}
             </Typography>
           </Box>
-          <IconButton
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            sx={{ ml: 2 }}
-          >
-            <MoreVert />
-          </IconButton>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<Edit />}
+              onClick={() => setEditDialog(true)}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={project.status === 'archived' ? <Restore /> : <Archive />}
+              onClick={handleArchiveProject}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                boxShadow: '0 4px 15px rgba(240, 147, 251, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #e084ec 0%, #e6495d 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(240, 147, 251, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              {project.status === 'archived' ? 'Restore' : 'Archive'}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Delete />}
+              onClick={() => setDeleteDialog(true)}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
+                boxShadow: '0 4px 15px rgba(255, 107, 107, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #ff5757 0%, #dc4c64 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(255, 107, 107, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Delete
+            </Button>
+          </Box>
         </Box>
 
         {/* Project Stats Cards */}
@@ -344,33 +420,43 @@ const ProjectDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
       >
-        <MenuItem onClick={() => {
-          setEditDialog(true);
-          setAnchorEl(null);
-        }}>
-          <Edit sx={{ mr: 1 }} /> Edit Project
-        </MenuItem>
-        <MenuItem onClick={() => {
-          navigate(`/tasks?project=${project.id}`);
-          setAnchorEl(null);
-        }}>
-          <Assignment sx={{ mr: 1 }} /> Manage Tasks
-        </MenuItem>
-        <MenuItem onClick={() => {
-          console.log('Archive project');
-          setAnchorEl(null);
-        }}>
-          <Delete sx={{ mr: 1 }} /> Archive Project
-        </MenuItem>
-      </Menu>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Delete color="error" />
+            <Typography variant="h6">
+              Delete Project
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete <strong>{project.name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. All tasks, files, and data associated with this project will be permanently removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteProject} 
+            color="error" 
+            variant="contained"
+            startIcon={<Delete />}
+          >
+            Delete Project
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialog} onClose={() => setEditDialog(false)} maxWidth="sm" fullWidth>
