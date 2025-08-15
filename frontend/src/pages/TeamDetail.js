@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Button, Chip, Avatar, AvatarGroup,
-  Tab, Tabs, Grid, IconButton, Menu, MenuItem, Dialog, DialogTitle,
+  Tab, Tabs, Grid, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, List, ListItem, ListItemAvatar,
   ListItemText, ListItemSecondaryAction
 } from '@mui/material';
 import {
-  ArrowBack, Edit, Delete, MoreVert, People, Assignment, Work,
-  PersonAdd, Email, Phone, AdminPanelSettings, Group, Star,
+  ArrowBack, Edit, Delete, People, Assignment, Work,
+  PersonAdd, Star,
   TrendingUp, Add
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchTeams } from '../store/slices/teamSlice';
+import { fetchTeams, updateTeam, deleteTeam } from '../store/slices/teamSlice';
 import { fetchProjects } from '../store/slices/projectSlice';
 import { fetchTasks } from '../store/slices/taskSlice';
 import { useForm } from 'react-hook-form';
@@ -26,8 +26,8 @@ const TeamDetail = () => {
   const { tasks } = useSelector((state) => state.tasks);
   
   const [tabValue, setTabValue] = useState(0);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [editDialog, setEditDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
   const [inviteDialog, setInviteDialog] = useState(false);
   
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
@@ -59,11 +59,24 @@ const TeamDetail = () => {
 
   const handleUpdateTeam = async (data) => {
     try {
-      console.log('Updating team:', data);
-      // Here you would dispatch an update action
+      await dispatch(updateTeam({
+        id: team.id,
+        ...data
+      })).unwrap();
+      await dispatch(fetchTeams());
       setEditDialog(false);
     } catch (err) {
       console.error('Failed to update team:', err);
+    }
+  };
+
+  const handleDeleteTeam = async () => {
+    try {
+      await dispatch(deleteTeam(team.id)).unwrap();
+      setDeleteDialog(false);
+      navigate('/teams');
+    } catch (err) {
+      console.error('Failed to delete team:', err);
     }
   };
 
@@ -116,12 +129,62 @@ const TeamDetail = () => {
               {team.description || 'No description provided'}
             </Typography>
           </Box>
-          <IconButton
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            sx={{ ml: 2 }}
-          >
-            <MoreVert />
-          </IconButton>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<PersonAdd />}
+              onClick={() => setInviteDialog(true)}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Invite
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Edit />}
+              onClick={() => setEditDialog(true)}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Delete />}
+              onClick={() => setDeleteDialog(true)}
+              sx={{
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
+                boxShadow: '0 4px 15px rgba(255, 107, 107, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #ff5757 0%, #dc4c64 100%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(255, 107, 107, 0.4)',
+                },
+                transition: 'all 0.2s ease-in-out'
+              }}
+            >
+              Delete
+            </Button>
+          </Box>
         </Box>
 
         {/* Team Stats Cards */}
@@ -296,9 +359,19 @@ const TeamDetail = () => {
                       }
                     />
                     <ListItemSecondaryAction>
-                      <IconButton onClick={() => console.log('Member options for', member.name)}>
-                        <MoreVert />
-                      </IconButton>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => console.log('Manage member:', member.name)}
+                        sx={{
+                          borderRadius: 1.5,
+                          fontSize: '0.75rem',
+                          py: 0.5,
+                          px: 1.5
+                        }}
+                      >
+                        Manage
+                      </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
                 ))}
@@ -389,39 +462,6 @@ const TeamDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuItem onClick={() => {
-          setEditDialog(true);
-          setAnchorEl(null);
-        }}>
-          <Edit sx={{ mr: 1 }} /> Edit Team
-        </MenuItem>
-        <MenuItem onClick={() => {
-          setInviteDialog(true);
-          setAnchorEl(null);
-        }}>
-          <PersonAdd sx={{ mr: 1 }} /> Invite Members
-        </MenuItem>
-        <MenuItem onClick={() => {
-          navigate(`/projects?team=${team.id}`);
-          setAnchorEl(null);
-        }}>
-          <Work sx={{ mr: 1 }} /> View Projects
-        </MenuItem>
-        <MenuItem onClick={() => {
-          console.log('Delete team');
-          setAnchorEl(null);
-        }}>
-          <Delete sx={{ mr: 1 }} /> Delete Team
-        </MenuItem>
-      </Menu>
 
       {/* Edit Dialog */}
       <Dialog open={editDialog} onClose={() => setEditDialog(false)} maxWidth="sm" fullWidth>
@@ -499,6 +539,44 @@ const TeamDetail = () => {
           <Button onClick={() => setInviteDialog(false)}>Cancel</Button>
           <Button onClick={handleSubmit(handleInviteMember)} variant="contained">
             Send Invitation
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog}
+        onClose={() => setDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Delete color="error" />
+            <Typography variant="h6">
+              Delete Team
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete <strong>{team.name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. All team data, members, and associated projects will be permanently removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteTeam} 
+            color="error" 
+            variant="contained"
+            startIcon={<Delete />}
+          >
+            Delete Team
           </Button>
         </DialogActions>
       </Dialog>
