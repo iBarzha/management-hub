@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog,
-  DialogTitle, DialogContent, DialogActions, TextField, Menu, MenuItem} from '@mui/material';
+  DialogTitle, DialogContent, DialogActions, TextField} from '@mui/material';
 import { 
-  Add, People, MoreVert, Group, PersonAdd,
+  Add, People, Group, PersonAdd, Visibility,
   Work, Assignment, Star, TrendingUp
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,8 +15,6 @@ const Teams = () => {
   const navigate = useNavigate();
   const { teams, isLoading, error } = useSelector((state) => state.teams);
   const [openDialog, setOpenDialog] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedTeam, setSelectedTeam] = useState(null);
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -173,16 +171,35 @@ const Teams = () => {
                         </Box>
                       </Box>
                     </Box>
-                    <Button 
-                      size="small" 
-                      sx={{ minWidth: 'auto', p: 0.5 }}
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<Visibility />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setAnchorEl(e.currentTarget);
-                        setSelectedTeam(team);
+                        navigate(`/teams/${team.id}`);
+                      }}
+                      sx={{
+                        borderRadius: 2,
+                        background: index % 2 === 0 
+                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+                          : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                        boxShadow: index % 2 === 0 
+                          ? '0 4px 15px rgba(16, 185, 129, 0.3)' 
+                          : '0 4px 15px rgba(245, 158, 11, 0.3)',
+                        '&:hover': {
+                          background: index % 2 === 0 
+                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' 
+                            : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: index % 2 === 0 
+                            ? '0 6px 20px rgba(16, 185, 129, 0.4)' 
+                            : '0 6px 20px rgba(245, 158, 11, 0.4)',
+                        },
+                        transition: 'all 0.2s ease-in-out'
                       }}
                     >
-                      <MoreVert fontSize="small" />
+                      Details
                     </Button>
                   </Box>
                   
@@ -312,35 +329,6 @@ const Teams = () => {
         </DialogActions>
       </Dialog>
       
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuItem onClick={() => {
-          navigate(`/teams/${selectedTeam?.id}`);
-          setAnchorEl(null);
-        }}>View Details</MenuItem>
-        <MenuItem onClick={() => {
-          console.log('Edit team:', selectedTeam?.name);
-          setAnchorEl(null);
-        }}>Edit Team</MenuItem>
-        <MenuItem onClick={() => {
-          navigate(`/teams/${selectedTeam?.id}/members`);
-          setAnchorEl(null);
-        }}>Manage Members</MenuItem>
-        <MenuItem onClick={() => {
-          navigate(`/projects?team=${selectedTeam?.id}`);
-          setAnchorEl(null);
-        }}>View Projects</MenuItem>
-        <MenuItem onClick={() => {
-          console.log('Delete team:', selectedTeam?.name);
-          setAnchorEl(null);
-        }}>Delete Team</MenuItem>
-      </Menu>
     </Box>
   );
 };
