@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {Box, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, FormControl, InputLabel, Select, MenuItem, Menu} from '@mui/material';
 import { 
-  Add, Folder, MoreVert, People, CalendarToday, 
-  Assignment, FilterList} from '@mui/icons-material';
+  Add, Folder, People, CalendarToday, 
+  Assignment, FilterList, Visibility} from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjects, createProject } from '../store/slices/projectSlice';
 import { fetchTeams } from '../store/slices/teamSlice';
@@ -48,7 +48,6 @@ const Projects = () => {
         ...data,
         team_id: data.team_id ? parseInt(data.team_id) : null,
       })).unwrap();
-      // Refresh the projects list to ensure consistency
       await dispatch(fetchProjects());
       setOpenDialog(false);
       reset();
@@ -56,6 +55,7 @@ const Projects = () => {
       console.error('Failed to create project:', err);
     }
   };
+
 
   if (isLoading) {
     return (
@@ -206,15 +206,26 @@ const Projects = () => {
                       </Box>
                     </Box>
                     <Button
+                      variant="contained"
                       size="small"
-                      sx={{ minWidth: 'auto', p: 0.5 }}
+                      startIcon={<Visibility />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setAnchorEl(e.currentTarget);
-                        setSelectedProject(project);
+                        navigate(`/projects/${project.id}`);
+                      }}
+                      sx={{
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                        },
+                        transition: 'all 0.2s ease-in-out'
                       }}
                     >
-                      <MoreVert fontSize="small" />
+                      Details
                     </Button>
                   </Box>
                   
@@ -351,6 +362,7 @@ const Projects = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
       
       {/* Context Menu */}
       <Menu
