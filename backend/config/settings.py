@@ -1,6 +1,8 @@
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import os
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -78,21 +80,11 @@ TEMPLATES = [
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
-        'CONN_MAX_AGE': config('DB_CONN_MAX_AGE', default=600, cast=int),
-        'OPTIONS': {
-            'sslmode': 'prefer',
-            'connect_timeout': 10,
-        },
-        'ATOMIC_REQUESTS': True,
-        'AUTOCOMMIT': True,
-    }
+    'default': dj_database_url.config(
+        default=config('postgresql://postgres:hfGPdRsfgfCGSRDMqDOezXJmYwAFkXWC@postgres.railway.internal:5432/railway'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Cache Configuration
@@ -341,9 +333,10 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# Static files
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Static files configuration for Railway
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -353,3 +346,11 @@ AUTH_USER_MODEL = 'users.User'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Add WhiteNoise for static files
+MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+
+# Add health check URL
+from django.http import JsonResponse
+def health_check(request):
+    return JsonResponse({'status': 'healthy'})
