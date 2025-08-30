@@ -54,8 +54,8 @@ const Analytics = () => {
     try {
       const response = await api.get('/projects/');
       const projectsList = response.data.results || response.data || [];
-      setProjects(projectsList);
-      
+      setProjects(Array.isArray(projectsList) ? projectsList : []);
+
       if (projectsList.length > 0) {
         const firstProject = projectsList[0];
         setSelectedProject(firstProject.id);
@@ -65,15 +65,16 @@ const Analytics = () => {
     } catch (error) {
       console.error('Error loading projects:', error);
       setError('Failed to load projects');
+      setProjects([]);
     }
   };
 
   const loadAnalyticsData = async () => {
     if (!selectedProject) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       // Load dashboard data
       const dashboardResponse = await api.get(
@@ -109,7 +110,7 @@ const Analytics = () => {
 
   const handleRefreshMetrics = async () => {
     if (!selectedProject) return;
-    
+
     setLoading(true);
     try {
       await api.post(`/analytics/projects/${selectedProject}/metrics/refresh/`);
@@ -124,12 +125,12 @@ const Analytics = () => {
 
   const handleExport = async (format) => {
     if (!selectedProject) return;
-    
+
     try {
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - dateRange);
-      
+
       const response = await api.post('/analytics/reports/generate/', {
         project_id: selectedProject,
         report_type: 'project_summary',
@@ -157,7 +158,7 @@ const Analytics = () => {
 
   // Chart configurations
   const getBurndownChartConfig = () => {
-    if (!burndownData?.burndown_data) return null;
+    if (!burndownData?.burndown_data || !Array.isArray(burndownData.burndown_data)) return null;
 
     const data = burndownData.burndown_data;
     return {
@@ -183,7 +184,7 @@ const Analytics = () => {
   };
 
   const getVelocityChartConfig = () => {
-    if (!velocityData?.velocity_trend?.velocity_data) return null;
+    if (!velocityData?.velocity_trend?.velocity_data || !Array.isArray(velocityData.velocity_trend.velocity_data)) return null;
 
     const data = velocityData.velocity_trend.velocity_data;
     return {
@@ -208,12 +209,12 @@ const Analytics = () => {
   };
 
   const getTaskBreakdownChartConfig = () => {
-    if (!dashboardData?.task_breakdown) return null;
+    if (!dashboardData?.task_breakdown || !Array.isArray(dashboardData.task_breakdown)) return null;
 
     const breakdown = dashboardData.task_breakdown;
-    const labels = breakdown.map(item => item.status.charAt(0).toUpperCase() + item.status.slice(1));
-    const data = breakdown.map(item => item.count);
-    
+    const labels = breakdown.map(item => item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Unknown');
+    const data = breakdown.map(item => item.count || 0);
+
     return {
       labels,
       datasets: [
@@ -263,7 +264,7 @@ const Analytics = () => {
           <AnalyticsIcon sx={{ mr: 2, fontSize: 40, color: 'primary.main' }} />
           <Typography variant="h4">Analytics & Reporting</Typography>
         </Box>
-        
+
         <Box display="flex" alignItems="center" gap={2}>
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Project</InputLabel>
@@ -272,14 +273,14 @@ const Analytics = () => {
               label="Project"
               onChange={(e) => setSelectedProject(e.target.value)}
             >
-              {projects.map((project) => (
+              {(projects || []).map((project) => (
                 <MenuItem key={project.id} value={project.id}>
                   {project.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
-          
+
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Date Range</InputLabel>
             <Select
@@ -293,13 +294,13 @@ const Analytics = () => {
               <MenuItem value={180}>6 months</MenuItem>
             </Select>
           </FormControl>
-          
+
           <Tooltip title="Refresh Metrics">
             <IconButton onClick={handleRefreshMetrics} disabled={loading || !selectedProject}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>
-          
+
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
@@ -335,7 +336,7 @@ const Analytics = () => {
                 </CardContent>
               </Card>
             </Grid>
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
@@ -353,7 +354,7 @@ const Analytics = () => {
                 </CardContent>
               </Card>
             </Grid>
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
@@ -374,7 +375,7 @@ const Analytics = () => {
                 </CardContent>
               </Card>
             </Grid>
-            
+
             <Grid item xs={12} sm={6} md={3}>
               <Card>
                 <CardContent>
@@ -416,8 +417,8 @@ const Analytics = () => {
                       <CircularProgress />
                     </Box>
                   ) : getTaskBreakdownChartConfig() ? (
-                    <Doughnut 
-                      data={getTaskBreakdownChartConfig()} 
+                    <Doughnut
+                      data={getTaskBreakdownChartConfig()}
                       options={{
                         responsive: true,
                         plugins: {
@@ -431,21 +432,21 @@ const Analytics = () => {
                     <Typography color="textSecondary">No data available</Typography>
                   )}
                 </Grid>
-                
+
                 <Grid item xs={12} md={4}>
                   <Typography variant="h6" gutterBottom>
                     Project Health
                   </Typography>
                   <Box display="flex" flexDirection="column" gap={2}>
-                    <Chip 
+                    <Chip
                       label={`On-time Rate: ${dashboardData?.metrics?.on_time_completion_rate?.toFixed(1) || 0}%`}
                       color={dashboardData?.metrics?.on_time_completion_rate > 80 ? 'success' : 'warning'}
                     />
-                    <Chip 
+                    <Chip
                       label={`Overdue Tasks: ${dashboardData?.metrics?.overdue_tasks || 0}`}
                       color={dashboardData?.metrics?.overdue_tasks > 0 ? 'error' : 'success'}
                     />
-                    <Chip 
+                    <Chip
                       label={`Avg. Completion Time: ${dashboardData?.metrics?.average_task_completion_time?.toFixed(1) || 0}h`}
                       color="info"
                     />
@@ -482,7 +483,7 @@ const Analytics = () => {
               ) : (
                 <Typography color="textSecondary">No velocity data available</Typography>
               )}
-              
+
               {velocityData?.velocity_trend && (
                 <Box mt={3}>
                   <Grid container spacing={2}>
@@ -529,7 +530,7 @@ const Analytics = () => {
                 <Box display="flex" justifyContent="center" p={4}>
                   <CircularProgress />
                 </Box>
-              ) : teamPerformance?.team_performance ? (
+              ) : teamPerformance?.team_performance && Array.isArray(teamPerformance.team_performance) ? (
                 <Grid container spacing={2}>
                   {teamPerformance.team_performance.map((member, index) => (
                     <Grid item xs={12} md={6} lg={4} key={index}>
@@ -541,7 +542,7 @@ const Analytics = () => {
                           <Typography variant="body2" color="textSecondary" gutterBottom>
                             {member.role}
                           </Typography>
-                          
+
                           <Box display="flex" justifyContent="space-between" mt={2}>
                             <Typography variant="body2">
                               Tasks Assigned: <strong>{member.tasks_assigned}</strong>
@@ -562,9 +563,9 @@ const Analytics = () => {
                               On-time Rate: <strong>{member.on_time_rate?.toFixed(1)}%</strong>
                             </Typography>
                           </Box>
-                          
+
                           <Box mt={2}>
-                            <Chip 
+                            <Chip
                               label={`Productivity Score: ${member.productivity_score?.toFixed(1)}`}
                               color={member.productivity_score > 80 ? 'success' : member.productivity_score > 60 ? 'warning' : 'error'}
                               size="small"
