@@ -354,3 +354,5 @@ MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 from django.http import JsonResponse
 def health_check(request):
     return JsonResponse({'status': 'healthy'})
+
+PORT = int(os.environ.get('PORT', 8000))
