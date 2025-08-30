@@ -12,7 +12,7 @@ const initialState = {
 export const fetchTeams = createAsyncThunk(
   'teams/fetchTeams',
   async () => {
-    const response = await api.get('/teams/');
+    const response = await api.get('/api/teams/'); // Изменено на /api/teams/
     return response.data;
   }
 );
@@ -20,7 +20,7 @@ export const fetchTeams = createAsyncThunk(
 export const fetchTeam = createAsyncThunk(
   'teams/fetchTeam',
   async (teamId) => {
-    const response = await api.get(`/teams/${teamId}/`);
+    const response = await api.get(`/teams/${teamId}/`); // Прямой путь
     return response.data;
   }
 );
@@ -28,7 +28,9 @@ export const fetchTeam = createAsyncThunk(
 export const createTeam = createAsyncThunk(
   'teams/createTeam',
   async (teamData) => {
-    const response = await api.post('/teams/', teamData);
+    console.log('Creating team with URL: /teams/'); // Отладочное логирование
+    console.log('Team data:', teamData);
+    const response = await api.post('/teams/', teamData); // Прямой путь
     return response.data;
   }
 );
@@ -36,7 +38,7 @@ export const createTeam = createAsyncThunk(
 export const updateTeam = createAsyncThunk(
   'teams/updateTeam',
   async ({ id, ...teamData }) => {
-    const response = await api.put(`/teams/${id}/`, teamData);
+    const response = await api.put(`/teams/${id}/`, teamData); // Прямой путь
     return response.data;
   }
 );
@@ -44,7 +46,7 @@ export const updateTeam = createAsyncThunk(
 export const deleteTeam = createAsyncThunk(
   'teams/deleteTeam',
   async (teamId) => {
-    await api.delete(`/teams/${teamId}/`);
+    await api.delete(`/teams/${teamId}/`); // Прямой путь
     return teamId;
   }
 );
@@ -52,7 +54,7 @@ export const deleteTeam = createAsyncThunk(
 export const fetchTeamMembers = createAsyncThunk(
   'teams/fetchTeamMembers',
   async (teamId) => {
-    const response = await api.get(`/teams/${teamId}/members/`);
+    const response = await api.get(`/teams/${teamId}/members/`); // Прямой путь
     return response.data;
   }
 );
@@ -60,7 +62,10 @@ export const fetchTeamMembers = createAsyncThunk(
 export const addTeamMember = createAsyncThunk(
   'teams/addTeamMember',
   async ({ teamId, userId, role }) => {
-    const response = await api.post(`/teams/${teamId}/members/`, { user: userId, role });
+    const response = await api.post(`/teams/${teamId}/add_member/`, {
+      user_id: userId, // Согласно Django view
+      role
+    });
     return response.data;
   }
 );
@@ -68,7 +73,9 @@ export const addTeamMember = createAsyncThunk(
 export const removeTeamMember = createAsyncThunk(
   'teams/removeTeamMember',
   async ({ teamId, memberId }) => {
-    await api.delete(`/teams/${teamId}/members/${memberId}/`);
+    const response = await api.delete(`/teams/${teamId}/remove_member/`, {
+      data: { user_id: memberId } // Согласно Django view
+    });
     return memberId;
   }
 );
