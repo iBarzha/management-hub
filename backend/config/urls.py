@@ -30,7 +30,7 @@ urlpatterns = [
     path('auth/', include('users.urls')),
     path('projects/', include('projects.urls')),
     path('tasks/', include('tasks.urls')),
-    path('teams/', include('collaboration.urls')),
+    path('teams/', include('projects.urls')),
     path('collaboration/', include('collaboration.urls')),
     path('integrations/', include('integrations.urls')),
     path('analytics/', include('analytics.urls')),
