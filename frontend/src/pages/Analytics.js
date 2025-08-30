@@ -255,8 +255,6 @@ const Analytics = () => {
     }
   };
 
-  const selectedProjectData = projects.find(p => p.id === selectedProject);
-
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
