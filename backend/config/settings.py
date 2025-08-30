@@ -6,9 +6,12 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+
+ALLOWED_HOSTS = ['*']
+if not DEBUG:
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',') if config('ALLOWED_HOSTS', default='') else ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -38,27 +41,16 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'users.middleware.SecurityHeadersMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'config.middleware.ETagMiddleware',
-    'users.middleware.RateLimitMiddleware',
-    'users.sql_protection.SQLInjectionProtectionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'users.csrf_protection.SameSiteMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'users.csrf_protection.EnhancedCSRFMiddleware',
-    'users.csrf_protection.DoubleSubmitCookieMiddleware',
-    'users.csrf_protection.OriginValidationMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'users.middleware.TokenValidationMiddleware',
-    'users.middleware.UserActivityMiddleware',
-    'config.middleware.CacheMiddleware',
-    'config.db_pool.DatabaseConnectionMiddleware',
-    'config.monitoring.MiddlewarePerformanceMonitor',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'users.middleware.SecurityHeadersMiddleware',
+    'config.middleware.ETagMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -79,51 +71,35 @@ TEMPLATES = [
     },
 ]
 
-# Database
-DATABASE_URL = config(
-    'DATABASE_URL',
-    default='postgresql://postgres:hfGPdRsfgfCGSRDMqDOezXJmYwAFkXWC@postgres.railway.internal:5432/railway'
-)
-
+# Database - Railway DATABASE_URL
 DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL)
+    'default': dj_database_url.parse(
+        os.environ.get(
+            'DATABASE_URL',
+            'postgresql://postgres:hfGPdRsfgfCGSRDMqDOezXJmYwAFkXWC@postgres.railway.internal:5432/railway'
+        )
+    )
 }
 
+# Redis URL для Railway
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://default:wETRIbHfXAiUSOBmPvfMStkytvNHKdvl@redis.railway.internal:6379')
+
 # Cache Configuration
-try:
-    import redis
-    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379/1'))
-    redis_client.ping()
-    # Redis is available
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 50,
-                    'retry_on_timeout': True,
-                },
-                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-                'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
             },
-            'KEY_PREFIX': 'management_hub',
-            'TIMEOUT': 300,
-        }
+        },
+        'KEY_PREFIX': 'management_hub',
+        'TIMEOUT': 300,
     }
-except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
-    # Fallback to local memory cache for development
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'management_hub_cache',
-            'TIMEOUT': 300,
-            'OPTIONS': {
-                'MAX_ENTRIES': 1000,
-            }
-        }
-    }
+}
 
 # Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
@@ -152,75 +128,37 @@ REST_FRAMEWORK = {
 
 # JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=config('JWT_ACCESS_TOKEN_LIFETIME', default=60, cast=int)),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_TOKEN_LIFETIME', default=7, cast=int)),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    config('FRONTEND_URL', default='http://localhost:3000'),
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=False, cast=bool)
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # CSRF settings for API
 CSRF_TRUSTED_ORIGINS = [
-    config('FRONTEND_URL', default='http://localhost:3000'),
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 
-# Exempt API endpoints from CSRF (since we use JWT)
-CSRF_EXEMPT_URLS = [
-    r'^api/',
-    r'^/api/',
-]
-
-# Additional CORS security settings
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",  # Allow Vercel deployments
-    r"^https://.*\.netlify\.app$",  # Allow Netlify deployments
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
-
-CORS_EXPOSE_HEADERS = [
-    'content-disposition',
-    'x-pagination-count',
-    'x-pagination-page',
-    'x-pagination-per-page',
-]
+# Add Railway domain to CORS and CSRF when deployed
+if not DEBUG:
+    railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+    if railway_domain:
+        CORS_ALLOWED_ORIGINS.append(f'https://{railway_domain}')
+        CSRF_TRUSTED_ORIGINS.append(f'https://{railway_domain}')
 
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
-
-# Session security
-SESSION_COOKIE_SECURE = not config('DEBUG', default=False, cast=bool)
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = not config('DEBUG', default=False, cast=bool)
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
-
-# Additional security headers
-if not config('DEBUG', default=False, cast=bool):
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -241,31 +179,36 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Logging configuration for security monitoring
+# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {
-        'security_file': {
-            'level': 'WARNING',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'security.log',
-        },
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
         },
     },
-    'loggers': {
-        'security': {
-            'handlers': ['security_file', 'console'],
-            'level': 'WARNING',
-            'propagate': True,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
-        'django.security': {
-            'handlers': ['security_file', 'console'],
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'security': {
+            'handlers': ['console'],
             'level': 'WARNING',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }
@@ -273,31 +216,18 @@ LOGGING = {
 # Channels
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Try Redis for channels, fallback to in-memory
-try:
-    import redis
-    redis_client = redis.from_url(config('REDIS_URL', default='redis://localhost:6379'))
-    redis_client.ping()
-    # Redis is available
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [(config('REDIS_URL', default='redis://localhost:6379'))],
-            },
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [REDIS_URL],
         },
-    }
-except (redis.ConnectionError, redis.TimeoutError, ImportError, Exception):
-    # Fallback to in-memory channel layer for development
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer'
-        },
-    }
+    },
+}
 
 # Celery Configuration
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379')
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -305,33 +235,9 @@ CELERY_TIMEZONE = 'UTC'
 
 # Celery Beat Schedule for automated tasks
 CELERY_BEAT_SCHEDULE = {
-    'cleanup-websocket-data': {
-        'task': 'collaboration.tasks.cleanup_websocket_data',
-        'schedule': 300.0,  # Every 5 minutes
-    },
-    'websocket-health-check': {
-        'task': 'collaboration.tasks.websocket_health_check',
-        'schedule': 600.0,  # Every 10 minutes
-    },
-    'generate-websocket-metrics': {
-        'task': 'collaboration.tasks.generate_websocket_metrics',
-        'schedule': 900.0,  # Every 15 minutes
-    },
-    'optimize-message-history': {
-        'task': 'collaboration.tasks.optimize_message_history',
-        'schedule': 3600.0,  # Every hour
-    },
     'send-task-deadline-reminders': {
         'task': 'tasks.tasks.send_task_deadline_reminders',
         'schedule': 86400.0,  # Daily
-    },
-    'cleanup-old-task-data': {
-        'task': 'tasks.tasks.cleanup_old_task_data',
-        'schedule': 604800.0,  # Weekly
-    },
-    'cleanup-expired-cache': {
-        'task': 'projects.tasks.cleanup_expired_cache',
-        'schedule': 7200.0,  # Every 2 hours
     },
 }
 
@@ -340,8 +246,9 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # User model
 AUTH_USER_MODEL = 'users.User'
@@ -349,16 +256,10 @@ AUTH_USER_MODEL = 'users.User'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Add WhiteNoise for static files
-MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-
-# Add health check URL
-from django.http import JsonResponse
-def health_check(request):
-    return JsonResponse({'status': 'healthy'})
-
+# Railway port
 PORT = int(os.environ.get('PORT', 8000))
 
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR, exist_ok=True)
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
