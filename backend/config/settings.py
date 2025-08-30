@@ -80,12 +80,13 @@ TEMPLATES = [
 ]
 
 # Database
+DATABASE_URL = config(
+    'DATABASE_URL',
+    default='postgresql://postgres:hfGPdRsfgfCGSRDMqDOezXJmYwAFkXWC@postgres.railway.internal:5432/railway'
+)
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=config('postgresql://postgres:hfGPdRsfgfCGSRDMqDOezXJmYwAFkXWC@postgres.railway.internal:5432/railway'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': dj_database_url.parse(DATABASE_URL)
 }
 
 # Cache Configuration
