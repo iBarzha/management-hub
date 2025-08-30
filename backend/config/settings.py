@@ -58,6 +58,7 @@ MIDDLEWARE = [
     'config.monitoring.MiddlewarePerformanceMonitor',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
