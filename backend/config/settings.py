@@ -358,3 +358,7 @@ def health_check(request):
     return JsonResponse({'status': 'healthy'})
 
 PORT = int(os.environ.get('PORT', 8000))
+
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR, exist_ok=True)
